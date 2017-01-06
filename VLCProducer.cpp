@@ -44,8 +44,8 @@ public:
         , m_instance( nullptr )
         , m_media( nullptr )
         , m_mediaPlayer( nullptr )
-        , audioIndex( -1 )
-        , videoIndex( -1 )
+        , m_audioIndex( -1 )
+        , m_videoIndex( -1 )
         , m_lastPosition( -1 )
     {
         if ( !file )
@@ -87,8 +87,8 @@ public:
                 {
                     if ( track.type() == VLC::MediaTrack::Video )
                     {
-                        if ( videoIndex == -1 )
-                            videoIndex = i;
+                        if ( m_videoIndex == -1 )
+                            m_videoIndex = i;
                         
                         snprintf( key, sizeof(key), "meta.media.%d.stream.type", i );
                         m_parent->set( key, "video" );
@@ -129,8 +129,8 @@ public:
                     }
                     else if ( track.type() == VLC::MediaTrack::Audio )
                     {
-                        if ( audioIndex == -1 )
-                            audioIndex = i;
+                        if ( m_audioIndex == -1 )
+                            m_audioIndex = i;
                         
                         snprintf( key, sizeof(key), "meta.media.%d.stream.type", i );
                         m_parent->set( key, "audio" );
@@ -149,29 +149,29 @@ public:
                     i++;
                 }
                 
-                if ( videoIndex != -1 )
+                if ( m_videoIndex != -1 )
                 {
-                    m_parent->set( "width", ( int64_t ) tracks[videoIndex].width() );
-                    m_parent->set( "meta.media.width", ( int64_t ) tracks[videoIndex].width() );
-                    m_parent->set( "height", ( int64_t ) tracks[videoIndex].height() );
-                    m_parent->set( "meta.media.height", ( int64_t ) tracks[videoIndex].height() );
-                    m_parent->set( "height", ( int64_t ) tracks[videoIndex].height() );
-                    m_parent->set( "meta.media.sample_aspect_num", ( int64_t ) tracks[videoIndex].sarNum() );
-                    m_parent->set( "meta.media.sample_aspect_den", ( int64_t ) tracks[videoIndex].sarDen() );
-                    m_parent->set( "aspect_ratio", ( double ) tracks[videoIndex].sarNum() / tracks[videoIndex].sarDen() );
-                    m_parent->set( "meta.media.frame_rate_num", ( int64_t ) tracks[videoIndex].fpsNum() );
-                    m_parent->set( "meta.media.frame_rate_den", ( int64_t ) tracks[videoIndex].fpsDen() );
-                    m_parent->set( "frame_rate", ( double ) tracks[videoIndex].fpsNum() / tracks[videoIndex].fpsDen() );
+                    m_parent->set( "width", ( int64_t ) tracks[m_videoIndex].width() );
+                    m_parent->set( "meta.media.width", ( int64_t ) tracks[m_videoIndex].width() );
+                    m_parent->set( "height", ( int64_t ) tracks[m_videoIndex].height() );
+                    m_parent->set( "meta.media.height", ( int64_t ) tracks[m_videoIndex].height() );
+                    m_parent->set( "height", ( int64_t ) tracks[m_videoIndex].height() );
+                    m_parent->set( "meta.media.sample_aspect_num", ( int64_t ) tracks[m_videoIndex].sarNum() );
+                    m_parent->set( "meta.media.sample_aspect_den", ( int64_t ) tracks[m_videoIndex].sarDen() );
+                    m_parent->set( "aspect_ratio", ( double ) tracks[m_videoIndex].sarNum() / tracks[m_videoIndex].sarDen() );
+                    m_parent->set( "meta.media.frame_rate_num", ( int64_t ) tracks[m_videoIndex].fpsNum() );
+                    m_parent->set( "meta.media.frame_rate_den", ( int64_t ) tracks[m_videoIndex].fpsDen() );
+                    m_parent->set( "frame_rate", ( double ) tracks[m_videoIndex].fpsNum() / tracks[m_videoIndex].fpsDen() );
                     m_parent->set( "length", ( int ) ( m_media->duration() * mlt_profile_fps( ( mlt_profile ) m_parent->get_data( "_profile" ) ) ) / 1000 + 0.5 );
                     m_parent->set( "out", ( int ) m_parent->get_int( "length" ) - 1 );
                 }
                 
-                if ( audioIndex != -1 )
+                if ( m_audioIndex != -1 )
                 {
-                    m_parent->set( "meta.media.sample_rate", ( int64_t ) tracks[audioIndex].rate() );
-                    m_parent->set( "meta.media.channels", ( int64_t ) tracks[audioIndex].channels() );
-                    m_parent->set( "sample_rate", ( int64_t ) tracks[audioIndex].rate() );
-                    m_parent->set( "channels", ( int64_t ) tracks[audioIndex].channels() );
+                    m_parent->set( "meta.media.sample_rate", ( int64_t ) tracks[m_audioIndex].rate() );
+                    m_parent->set( "meta.media.channels", ( int64_t ) tracks[m_audioIndex].channels() );
+                    m_parent->set( "sample_rate", ( int64_t ) tracks[m_audioIndex].rate() );
+                    m_parent->set( "channels", ( int64_t ) tracks[m_audioIndex].channels() );
                 }
                 
             }
@@ -432,8 +432,8 @@ private:
     
     std::deque<Mlt::Frame*> m_mltFrames;
     
-    int                 audioIndex;
-    int                 videoIndex;
+    int                 m_audioIndex;
+    int                 m_videoIndex;
     int                 m_lastPosition;
     
     std::mutex          renderLock;
