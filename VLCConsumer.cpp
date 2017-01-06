@@ -44,7 +44,6 @@ public:
         {
             self->m_mediaPlayer->setVolume( self->m_parent->get_double( "volume" ) * 100 );
         }
-
     }
     
     VLCConsumer( mlt_profile profile )
