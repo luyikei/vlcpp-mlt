@@ -27,6 +27,7 @@
 #include <deque>
 #include <vector>
 #include <mutex>
+#include <memory>
 
 #include <sys/time.h>
 
@@ -53,7 +54,7 @@ public:
         mlt_producer parent = new mlt_producer_s;
         if ( mlt_producer_init( parent, this ) == 0 )
         {
-            m_parent = new Mlt::Producer( parent );
+            m_parent.reset( new Mlt::Producer( parent ) );
             m_parent->dec_ref();
             
             parent->get_frame = producer_get_frame;
@@ -221,7 +222,6 @@ public:
         delete m_mediaPlayer;
         delete m_media;
         delete m_instance;
-        delete m_parent;
         
         clearFrames();
     }
@@ -422,7 +422,7 @@ private:
         m_mltFrames.clear();
     }
     
-    Mlt::Producer*      m_parent;
+    std::unique_ptr<Mlt::Producer>      m_parent;
     
     VLC::Instance*      m_instance;
     VLC::Media*         m_media;
