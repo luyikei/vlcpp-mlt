@@ -217,6 +217,8 @@ public:
     
     ~VLCProducer()
     {
+        if ( m_mediaPlayer != nullptr )
+            m_mediaPlayer->stop();
         delete m_mediaPlayer;
         delete m_media;
         delete m_instance;
