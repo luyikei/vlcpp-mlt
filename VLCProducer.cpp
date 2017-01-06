@@ -50,8 +50,8 @@ public:
         if ( !file )
             return;
             
-        mlt_producer parent = ( mlt_producer ) calloc( 1, sizeof( struct mlt_producer_s ) );
-        if ( parent && mlt_producer_init( parent, this ) == 0 )
+        mlt_producer parent = new mlt_producer_s;
+        if ( mlt_producer_init( parent, this ) == 0 )
         {
             m_parent = new Mlt::Producer( parent );
             m_parent->dec_ref();
