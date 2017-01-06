@@ -29,7 +29,6 @@
 #include <mutex>
 
 #include <sys/time.h>
-#include <unistd.h> 
 
 #include <mlt++/MltProfile.h>
 #include <mlt++/MltProducer.h>
