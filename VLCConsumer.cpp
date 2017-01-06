@@ -49,7 +49,7 @@ public:
     VLCConsumer( mlt_profile profile )
         : m_lastAudioFrame( nullptr )
         , m_lastVideoFrame( nullptr )
-        , m_lastAuidoPts( 0 )
+        , m_lastAudioPts( 0 )
         , m_lastVideoPts( 0 )
     {
         mlt_consumer parent = ( mlt_consumer ) calloc( 1, sizeof( mlt_consumer_s ) );
@@ -156,7 +156,7 @@ public:
     
     void clean()
     {
-        m_lastAuidoPts = 0;
+        m_lastAudioPts = 0;
         m_lastVideoPts = 0;
         purge();
     }
@@ -219,9 +219,9 @@ private:
             double ptsDiff = ( double ) samples / frequency * 1000000.0;
 
 
-            *pts = vlcConsumer->m_lastAuidoPts + ptsDiff;
+            *pts = vlcConsumer->m_lastAudioPts + ptsDiff;
             mlt_log_debug( vlcConsumer->consumer(), "%ld", *pts );
-            vlcConsumer->m_lastAuidoPts = *pts;
+            vlcConsumer->m_lastAudioPts = *pts;
             *dts = *pts;
 
             if ( cleanup_frame )
@@ -320,7 +320,7 @@ private:
     // This is a trick to avoid calling mlt_consumer_rt_frame twice ( for audio and video ) for one frame.
     std::deque<Mlt::Frame*> m_frames;
 
-    int64_t             m_lastAuidoPts;
+    int64_t             m_lastAudioPts;
     int64_t             m_lastVideoPts;
     
 };
