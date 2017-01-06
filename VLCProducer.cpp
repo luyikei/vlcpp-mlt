@@ -243,7 +243,7 @@ private:
         if ( vlcProducer->m_audioFrames.size() >= 20 )
             vlcProducer->m_mediaPlayer.setPause( true );
 
-        auto frame = new Frame;
+        auto frame = std::make_shared<Frame>();
         frame->buffer = buffer;
         frame->size = size;
         frame->iterator = 0;
@@ -271,7 +271,7 @@ private:
         if ( vlcProducer->m_videoFrames.size() >= 20 )
             vlcProducer->m_mediaPlayer.setPause( true );
 
-        auto frame = new Frame;
+        auto frame = std::make_shared<Frame>();
         frame->buffer = buffer;
         frame->size = size;
         frame->vlcTime = vlcProducer->m_mediaPlayer.time();
@@ -295,7 +295,7 @@ private:
         if ( m_videoFrames.size() > 0 && m_audioFrames.size() > 0 &&
             ( int ) ( ( m_audioFrames.size() - 1 ) * m_audioFrames[0]->size ) >= audio_buffer_size )
         {
-            auto mltFrame = new Mlt::Frame( mlt_frame_init( m_parent->get_service() ) );
+            auto mltFrame = std::make_shared<Mlt::Frame>( mlt_frame_init( m_parent->get_service() ) );
             
             auto packedAudioBuffer = ( uint8_t* ) mlt_pool_alloc( audio_buffer_size );
             int iterator = 0;
@@ -309,7 +309,6 @@ private:
                 if ( frontBuffer->iterator == frontBuffer->size )
                 {
                     m_audioFrames.pop_front();
-                    delete frontBuffer;
                 }
             }
             
@@ -333,7 +332,6 @@ private:
             
             videoFrame->buffer = nullptr;
             m_videoFrames.pop_front();
-            delete videoFrame;
         }
     }
 
@@ -378,7 +376,6 @@ private:
             if ( paused == false )
             {
                 vlcProducer->m_mltFrames.pop_front();
-                delete mltFrame;
                 // Seek
                 if ( toSeek )
                 {
@@ -395,16 +392,8 @@ private:
     
     void clearFrames()
     {
-        for ( auto* frame : m_audioFrames )
-            delete frame;
         m_audioFrames.clear();
-        
-        for ( auto* frame : m_videoFrames )
-            delete frame;
         m_videoFrames.clear();
-        
-        for ( auto* frame : m_mltFrames )
-            delete frame;
         m_mltFrames.clear();
     }
     
@@ -413,10 +402,10 @@ private:
     VLC::Media          m_media;
     VLC::MediaPlayer    m_mediaPlayer;
     
-    std::deque<Frame*>  m_videoFrames;
-    std::deque<Frame*>  m_audioFrames;
+    std::deque<std::shared_ptr<Frame>>  m_videoFrames;
+    std::deque<std::shared_ptr<Frame>>  m_audioFrames;
     
-    std::deque<Mlt::Frame*> m_mltFrames;
+    std::deque<std::shared_ptr<Mlt::Frame>> m_mltFrames;
     
     int                 m_audioIndex;
     int                 m_videoIndex;
