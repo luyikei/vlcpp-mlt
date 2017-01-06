@@ -43,7 +43,7 @@ public:
 
         if ( strcmp( id, "volume" ) == 0 )
         {
-            self->m_mediaPlayer->setVolume( self->m_parent->get_double( "volume" ) * 100 );
+            self->m_mediaPlayer.setVolume( self->m_parent->get_double( "volume" ) * 100 );
         }
     }
     
@@ -79,7 +79,7 @@ public:
             NULL,
         };
 
-        m_instance = new VLC::Instance( 5, argv );
+        m_instance = VLC::Instance( 5, argv );
 
         char videoString[512];
         char inputSlave[256];
@@ -97,21 +97,21 @@ public:
                  m_parent->get_int( "channels" ) );
         strcpy( inputSlave, ":input-slave=imem://" );
         strcat( inputSlave, audioParameters );
-        m_media = new VLC::Media( *m_instance, std::string( "imem://" ) + videoString,
-                                  VLC::Media::FromType::FromLocation );
-        m_media->addOption( inputSlave );
+        m_media = VLC::Media( m_instance, std::string( "imem://" ) + videoString,
+                              VLC::Media::FromType::FromLocation );
+        m_media.addOption( inputSlave );
 
         char        buffer[64];
         sprintf( buffer, "imem-get=%p", imem_get );
-        m_media->addOption( buffer );
+        m_media.addOption( buffer );
         sprintf( buffer, ":imem-release=%p", imem_release );
-        m_media->addOption( buffer );
+        m_media.addOption( buffer );
         sprintf( buffer, ":imem-data=%p", this );
-        m_media->addOption( buffer );
+        m_media.addOption( buffer );
 
 
-        m_mediaPlayer = new VLC::MediaPlayer( *m_instance );
-        m_mediaPlayer->setMedia( *m_media );
+        m_mediaPlayer = VLC::MediaPlayer( m_instance );
+        m_mediaPlayer.setMedia( m_media );
     }
     
     mlt_consumer consumer()
@@ -121,30 +121,30 @@ public:
     
     void setXWindow( int64_t id )
     {
-        m_mediaPlayer->setXwindow( id );
+        m_mediaPlayer.setXwindow( id );
     }
     
     bool start()
     {
         setXWindow( m_parent->get_int64( "window_id" ) );
-        return m_mediaPlayer->play();
+        return m_mediaPlayer.play();
     }
     
     bool stop()
     {
-        m_mediaPlayer->stop();
+        m_mediaPlayer.stop();
         clean();
         return true;
     }
     
     bool isStopped()
     {
-        return !m_mediaPlayer->isPlaying();
+        return !m_mediaPlayer.isPlaying();
     }
     
     void setPause( bool val )
     {
-        m_mediaPlayer->setPause( val );
+        m_mediaPlayer.setPause( val );
     }
     
     void purge()
@@ -164,11 +164,6 @@ public:
     
     ~VLCConsumer()
     {
-        delete m_parent;
-        delete m_instance;
-        delete m_media;
-        delete m_mediaPlayer;
-        
         // Failsafe
         delete m_lastAudioFrame;
         delete m_lastVideoFrame;
@@ -311,9 +306,9 @@ private:
     
     std::unique_ptr<Mlt::Consumer>      m_parent;
     
-    VLC::Instance*      m_instance;
-    VLC::Media*         m_media;
-    VLC::MediaPlayer*   m_mediaPlayer;
+    VLC::Instance       m_instance;
+    VLC::Media          m_media;
+    VLC::MediaPlayer    m_mediaPlayer;
     
     Mlt::Frame*         m_lastAudioFrame;
     Mlt::Frame*         m_lastVideoFrame;
