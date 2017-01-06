@@ -70,17 +70,6 @@ public:
         mlt_parent->is_stopped = consumer_is_stopped;
         mlt_parent->purge = consumer_purge;
 
-        const char * const argv[] = {
-            "--no-skip-frames",
-            "dummy",
-            "--text-renderer",
-            "--no-sub-autodetect-file",
-            "--no-disable-screensaver",
-            NULL,
-        };
-
-        m_instance = VLC::Instance( 5, argv );
-
         char videoString[512];
         char inputSlave[256];
         char audioParameters[256];
@@ -97,7 +86,7 @@ public:
                  m_parent->get_int( "channels" ) );
         strcpy( inputSlave, ":input-slave=imem://" );
         strcat( inputSlave, audioParameters );
-        m_media = VLC::Media( m_instance, std::string( "imem://" ) + videoString,
+        m_media = VLC::Media( instance, std::string( "imem://" ) + videoString,
                               VLC::Media::FromType::FromLocation );
         m_media.addOption( inputSlave );
 
@@ -110,7 +99,7 @@ public:
         m_media.addOption( buffer );
 
 
-        m_mediaPlayer = VLC::MediaPlayer( m_instance );
+        m_mediaPlayer = VLC::MediaPlayer( instance );
         m_mediaPlayer.setMedia( m_media );
     }
     
@@ -176,6 +165,7 @@ public:
     
     static const uint8_t     VideoCookie = '0';
     static const uint8_t     AudioCookie = '1';
+    static VLC::Instance     instance;
     
 private:
 
@@ -306,7 +296,6 @@ private:
     
     std::unique_ptr<Mlt::Consumer>      m_parent;
     
-    VLC::Instance       m_instance;
     VLC::Media          m_media;
     VLC::MediaPlayer    m_mediaPlayer;
     
@@ -320,6 +309,16 @@ private:
     int64_t             m_lastVideoPts;
     
 };
+
+const char * const argv[] = {
+    "--no-skip-frames",\
+    "--text-renderer",
+    "--no-sub-autodetect-file",
+    "--no-disable-screensaver",
+    NULL,
+};
+
+VLC::Instance VLCConsumer::instance = VLC::Instance( 4, argv );
 
 extern "C" mlt_consumer consumer_vlc_init_CXX( mlt_profile profile, mlt_service_type type , const char* id , char* arg )
 {
