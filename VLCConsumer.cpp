@@ -96,9 +96,7 @@ public:
         sprintf( buffer, ":imem-data=%p", this );
         m_media.addOption( buffer );
 
-
-        m_mediaPlayer = VLC::MediaPlayer( instance );
-        m_mediaPlayer.setMedia( m_media );
+        m_mediaPlayer = VLC::MediaPlayer( m_media );
     }
     
     mlt_consumer consumer()
