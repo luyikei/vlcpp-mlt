@@ -41,7 +41,6 @@ class VLCProducer
 public:
     VLCProducer( mlt_profile profile, char* file )
         : m_parent( nullptr )
-        , m_instance( nullptr )
         , m_media( nullptr )
         , m_mediaPlayer( nullptr )
         , m_audioIndex( -1 )
@@ -63,18 +62,8 @@ public:
             m_parent->set_lcnumeric( "C" );
             m_parent->set( "resource", file );
             m_parent->set( "_profile", ( void* ) profile, 0, NULL, NULL );
-            
-            const char * const argv[] = {
-                "--no-skip-frames",
-                "dummy",
-                "--text-renderer",
-                "--no-sub-autodetect-file",
-                "--no-disable-screensaver",
-                NULL,
-            };
 
-            m_instance = new VLC::Instance( 5, argv );
-            m_media = new VLC::Media( *m_instance, std::string( "" ) + file, VLC::Media::FromType::FromPath );
+            m_media = new VLC::Media( instance, std::string( "" ) + file, VLC::Media::FromType::FromPath );
             m_media->parseWithOptions( VLC::Media::ParseFlags::Local, 3000 );
             while ( m_media->parsedStatus() != VLC::Media::ParsedStatus::Done );
             if ( m_media->parsedStatus() == VLC::Media::ParsedStatus::Done )
@@ -221,11 +210,12 @@ public:
             m_mediaPlayer->stop();
         delete m_mediaPlayer;
         delete m_media;
-        delete m_instance;
         
         clearFrames();
     }
     
+    static VLC::Instance    instance;
+
 private:
     
     struct Frame {
@@ -424,7 +414,6 @@ private:
     
     std::unique_ptr<Mlt::Producer>      m_parent;
     
-    VLC::Instance*      m_instance;
     VLC::Media*         m_media;
     VLC::MediaPlayer*   m_mediaPlayer;
     
@@ -439,6 +428,17 @@ private:
     
     std::mutex          renderLock;
 };
+
+
+const char * const argv[] = {
+    "--no-skip-frames",
+    "--text-renderer",
+    "--no-sub-autodetect-file",
+    "--no-disable-screensaver",
+    NULL,
+};
+
+VLC::Instance VLCProducer::instance = VLC::Instance( 4, argv );
 
 extern "C" mlt_producer producer_vlc_init_CXX( mlt_profile profile, mlt_service_type type , const char* id , char* arg )
 {
