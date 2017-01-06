@@ -27,6 +27,7 @@
 #include <deque>
 #include <vector>
 #include <sys/time.h>
+#include <memory>
 
 #include <mlt++/MltConsumer.h>
 
@@ -52,9 +53,9 @@ public:
         , m_lastAudioPts( 0 )
         , m_lastVideoPts( 0 )
     {
-        mlt_consumer parent = ( mlt_consumer ) calloc( 1, sizeof( mlt_consumer_s ) );
+        mlt_consumer parent = new mlt_consumer_s;
         mlt_consumer_init( parent, this, profile );
-        m_parent = new Mlt::Consumer( parent );
+        m_parent.reset( new Mlt::Consumer( parent ) );
         m_parent->listen( "property-changed", this, ( mlt_listener ) onPropertyChanged );
         m_parent->dec_ref();
         auto mlt_parent = m_parent->get_consumer();
@@ -308,7 +309,7 @@ private:
         delete vlcConsumer;
     }
     
-    Mlt::Consumer*      m_parent;
+    std::unique_ptr<Mlt::Consumer>      m_parent;
     
     VLC::Instance*      m_instance;
     VLC::Media*         m_media;
