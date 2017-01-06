@@ -140,8 +140,6 @@ public:
     {
         for ( auto* frame : m_frames )
             delete frame;
-        
-        m_frames.clear();
     }
     
     void clean()
@@ -159,8 +157,6 @@ public:
         
         for ( auto* frame : m_frames )
             delete frame;
-        
-        m_frames.clear();
     }
     
     static const uint8_t     VideoCookie = '0';
