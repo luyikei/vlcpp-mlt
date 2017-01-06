@@ -41,6 +41,9 @@ class VLCProducer
 public:
     VLCProducer( mlt_profile profile, char* file )
         : m_parent( nullptr )
+        , m_instance( nullptr )
+        , m_media( nullptr )
+        , m_mediaPlayer( nullptr )
         , audioIndex( -1 )
         , videoIndex( -1 )
         , m_lastPosition( -1 )
