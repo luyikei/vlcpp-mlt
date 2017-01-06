@@ -48,9 +48,7 @@ public:
     }
     
     VLCConsumer( mlt_profile profile )
-        : m_lastAudioFrame( nullptr )
-        , m_lastVideoFrame( nullptr )
-        , m_lastAudioPts( 0 )
+        : m_lastAudioPts( 0 )
         , m_lastVideoPts( 0 )
     {
         mlt_consumer parent = new mlt_consumer_s;
@@ -138,8 +136,7 @@ public:
     
     void purge()
     {
-        for ( auto* frame : m_frames )
-            delete frame;
+        m_frames.clear();
     }
     
     void clean()
@@ -151,12 +148,7 @@ public:
     
     ~VLCConsumer()
     {
-        // Failsafe
-        delete m_lastAudioFrame;
-        delete m_lastVideoFrame;
-        
-        for ( auto* frame : m_frames )
-            delete frame;
+        purge();
     }
     
     static const uint8_t     VideoCookie = '0';
@@ -170,7 +162,7 @@ private:
     {
         auto vlcConsumer = reinterpret_cast<VLCConsumer*>( data );
 
-        Mlt::Frame* frame;
+        std::shared_ptr<Mlt::Frame> frame;
         bool cleanup_frame = false;
 
         if ( vlcConsumer->m_frames.size() > 0 )
@@ -181,7 +173,7 @@ private:
         }
         else
         {
-            frame = new Mlt::Frame( mlt_consumer_rt_frame( vlcConsumer->m_parent->get_consumer() ) );
+            frame = std::make_shared<Mlt::Frame>( mlt_consumer_rt_frame( vlcConsumer->m_parent->get_consumer() ) );
             frame->dec_ref();
         }
 
@@ -246,7 +238,6 @@ private:
                 return;
             mlt_events_fire( vlcConsumer->m_parent->get_properties(),
                             "consumer-frame-show", vlcConsumer->m_lastAudioFrame->get_frame(), NULL );
-            delete vlcConsumer->m_lastAudioFrame;
             vlcConsumer->m_lastAudioFrame = nullptr;
         }
         else if ( cookie[0] == VLCConsumer::VideoCookie )
@@ -255,7 +246,6 @@ private:
                 return;
             mlt_events_fire( vlcConsumer->m_parent->get_properties(),
                             "consumer-frame-show", vlcConsumer->m_lastVideoFrame->get_frame(), NULL );
-            delete vlcConsumer->m_lastVideoFrame;
             vlcConsumer->m_lastVideoFrame = nullptr;
         }
     }
@@ -295,11 +285,11 @@ private:
     VLC::Media          m_media;
     VLC::MediaPlayer    m_mediaPlayer;
     
-    Mlt::Frame*         m_lastAudioFrame;
-    Mlt::Frame*         m_lastVideoFrame;
+    std::shared_ptr<Mlt::Frame>         m_lastAudioFrame;
+    std::shared_ptr<Mlt::Frame>         m_lastVideoFrame;
 
     // This is a trick to avoid calling mlt_consumer_rt_frame twice ( for audio and video ) for one frame.
-    std::deque<Mlt::Frame*> m_frames;
+    std::deque<std::shared_ptr<Mlt::Frame>> m_frames;
 
     int64_t             m_lastAudioPts;
     int64_t             m_lastVideoPts;
