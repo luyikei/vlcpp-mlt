@@ -43,6 +43,7 @@ class VLCProducer
 public:
     VLCProducer( mlt_profile profile, char* file )
         : m_parent( nullptr )
+        , m_isValid( false )
         , m_audioIndex( -1 )
         , m_videoIndex( -1 )
         , m_lastPosition( -1 )
@@ -163,39 +164,39 @@ public:
                     m_parent->set( "sample_rate", ( int64_t ) tracks[m_audioIndex].rate() );
                     m_parent->set( "channels", ( int64_t ) tracks[m_audioIndex].channels() );
                 }
+
+                char smem_options[ 1000 ];
+                sprintf( smem_options,
+                        ":sout=#transcode{"
+                        "vcodec=%s,"
+                        "fps=%d/%d,"\
+                        "acodec=%s,"
+                        "}:smem{"
+                        "time-sync,"
+                        "no-sout-smem-time-sync,"
+                        "audio-prerender-callback=%" PRIdPTR ","
+                        "audio-postrender-callback=%" PRIdPTR ","
+                        "video-prerender-callback=%" PRIdPTR ","
+                        "video-postrender-callback=%" PRIdPTR ","
+                        "audio-data=%" PRIdPTR ","
+                        "video-data=%" PRIdPTR ","
+                        "}",
+                        "YUY2",
+                        profile->frame_rate_num,
+                        profile->frame_rate_den,\
+                        "s16l",
+                        ( intptr_t ) &audio_lock,
+                        ( intptr_t ) &audio_unlock,
+                        ( intptr_t ) &video_lock,
+                        ( intptr_t ) &video_unlock,
+                        ( intptr_t ) this,
+                        ( intptr_t ) this
+                );
                 
+                m_media.addOption( smem_options );
+                m_mediaPlayer = VLC::MediaPlayer( m_media );
+                m_isValid = true;
             }
-            
-            char smem_options[ 1000 ];
-            sprintf( smem_options,
-                     ":sout=#transcode{"
-                     "vcodec=%s,"
-                     "fps=%d/%d,"\
-                     "acodec=%s,"
-                     "}:smem{"
-                     "time-sync,"
-                     "no-sout-smem-time-sync,"
-                     "audio-prerender-callback=%" PRIdPTR ","
-                     "audio-postrender-callback=%" PRIdPTR ","
-                     "video-prerender-callback=%" PRIdPTR ","
-                     "video-postrender-callback=%" PRIdPTR ","
-                     "audio-data=%" PRIdPTR ","
-                     "video-data=%" PRIdPTR ","
-                     "}",
-                     "YUY2",
-                     profile->frame_rate_num,
-                     profile->frame_rate_den,\
-                     "s16l",
-                     ( intptr_t ) &audio_lock,
-                     ( intptr_t ) &audio_unlock,
-                     ( intptr_t ) &video_lock,
-                     ( intptr_t ) &video_unlock,
-                     ( intptr_t ) this,
-                     ( intptr_t ) this
-            );
-            
-            m_media.addOption( smem_options );
-            m_mediaPlayer = VLC::MediaPlayer( m_media );
         }
     }
     
@@ -204,6 +205,11 @@ public:
         return m_parent->get_producer();
     }
     
+    bool isValid()
+    {
+        return m_isValid;
+    }
+
     ~VLCProducer()
     {
         if ( m_mediaPlayer != nullptr )
@@ -405,6 +411,8 @@ private:
     
     std::deque<std::shared_ptr<Mlt::Frame>> m_mltFrames;
     
+    bool                m_isValid;
+
     int                 m_audioIndex;
     int                 m_videoIndex;
     int                 m_lastPosition;
@@ -427,5 +435,12 @@ VLC::Instance VLCProducer::instance = VLC::Instance( 4, argv );
 
 extern "C" mlt_producer producer_vlc_init_CXX( mlt_profile profile, mlt_service_type type , const char* id , char* arg )
 {
-    return ( new VLCProducer( profile, arg ) )->producer();
+    auto vlcProducer = new VLCProducer( profile, arg );
+    if ( vlcProducer->isValid() == true )
+        return vlcProducer->producer();
+    else
+    {
+        delete vlcProducer;
+        return NULL;
+    }
 }
