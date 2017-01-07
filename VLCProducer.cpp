@@ -344,7 +344,7 @@ private:
     static int producer_get_frame( mlt_producer producer, mlt_frame_ptr frame, int index )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( producer->child );
-        vlcProducer->renderLock.lock();
+        std::lock_guard<std::mutex>( vlcProducer->renderLock );
         
         if ( vlcProducer->m_mltFrames.size() >= 20 )
             vlcProducer->m_mediaPlayer.setPause( true );
@@ -361,7 +361,6 @@ private:
         if ( vlcProducer->m_mltFrames.size() == 0 )
         {
             *frame = mlt_frame_init( MLT_PRODUCER_SERVICE( producer ) );
-            vlcProducer->renderLock.unlock();
             return -1;
         }
         else
@@ -385,8 +384,6 @@ private:
                 }
             }
         }
-        
-        vlcProducer->renderLock.unlock();
         return 0;
     }
     
