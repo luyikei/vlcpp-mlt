@@ -373,8 +373,6 @@ private:
             if ( paused == true )
                 mltFrame->inc_ref();
             *frame = mltFrame->get_frame();
-            mlt_log_error( vlcProducer->m_parent->get_service(), "pos:%d %ld\n"
-            ,vlcProducer->m_lastPosition, mltFrame->get_int64( "vlc_position" ) );
 
             if ( paused == false )
             {
@@ -382,7 +380,6 @@ private:
                 // Seek
                 if ( toSeek )
                 {
-                    mlt_log_error( vlcProducer->m_parent->get_service(), "Sought\n" );
                     vlcProducer->m_mediaPlayer.setTime( vlcProducer->m_lastPosition * 1000.0 / mlt_profile_fps( ( mlt_profile ) vlcProducer->m_parent->get_data( "_profile" ) ) + 0.5 );
                     vlcProducer->clearFrames();
                 }
