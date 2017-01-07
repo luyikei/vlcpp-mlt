@@ -27,6 +27,8 @@
 #include <deque>
 #include <vector>
 #include <mutex>
+#include <condition_variable>
+#include <chrono>
 #include <memory>
 
 #include <sys/time.h>
@@ -44,6 +46,7 @@ public:
         , m_audioIndex( -1 )
         , m_videoIndex( -1 )
         , m_lastPosition( -1 )
+        , m_isFrameReady( false )
     {
         if ( !file )
             return;
@@ -193,7 +196,6 @@ public:
             
             m_media.addOption( smem_options );
             m_mediaPlayer = VLC::MediaPlayer( m_media );
-            m_mediaPlayer.play();
         }
     }
     
@@ -253,6 +255,7 @@ private:
         
         vlcProducer->packBufferToFrame();
         vlcProducer->renderLock.unlock();
+        vlcProducer->m_cv.notify_all();
     }
     
     static void video_lock( void* data, uint8_t** buffer, size_t size )
@@ -280,6 +283,7 @@ private:
         
         vlcProducer->packBufferToFrame();
         vlcProducer->renderLock.unlock();
+        vlcProducer->m_cv.notify_all();
     }
     
     void packBufferToFrame()
@@ -333,6 +337,8 @@ private:
             videoFrame->buffer = nullptr;
             m_videoFrames.pop_front();
         }
+
+        m_isFrameReady = m_mltFrames.size() > 0;
     }
 
     static void producer_close( mlt_producer parent )
@@ -344,7 +350,11 @@ private:
     static int producer_get_frame( mlt_producer producer, mlt_frame_ptr frame, int index )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( producer->child );
-        std::lock_guard<std::mutex>( vlcProducer->renderLock );
+        std::unique_lock<std::mutex> lck( vlcProducer->renderLock );
+        if ( vlcProducer->m_mediaPlayer.isPlaying() == false )
+            vlcProducer->m_mediaPlayer.play();
+        vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 100 ),
+                                    [vlcProducer]{ return vlcProducer->m_isFrameReady; } );
         
         if ( vlcProducer->m_mltFrames.size() >= 20 )
             vlcProducer->m_mediaPlayer.setPause( true );
@@ -409,6 +419,8 @@ private:
     int                 m_lastPosition;
     
     std::mutex          renderLock;
+    bool                        m_isFrameReady;
+    std::condition_variable     m_cv;
 };
 
 
