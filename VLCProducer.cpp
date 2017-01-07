@@ -51,16 +51,16 @@ public:
     {
         if ( !file )
             return;
-            
+
         mlt_producer parent = new mlt_producer_s;
         if ( mlt_producer_init( parent, this ) == 0 )
         {
             m_parent.reset( new Mlt::Producer( parent ) );
             m_parent->dec_ref();
-            
+
             parent->get_frame = producer_get_frame;
             parent->close = ( mlt_destructor ) producer_close;
-            
+
             m_parent->set_lcnumeric( "C" );
             m_parent->set( "resource", file );
             m_parent->set( "_profile", ( void* ) profile, 0, NULL, NULL );
@@ -80,39 +80,38 @@ public:
                     {
                         if ( m_videoIndex == -1 )
                             m_videoIndex = i;
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.stream.type", i );
                         m_parent->set( key, "video" );
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.stream.frame_rate", i );
                         m_parent->set( key, ( double ) track.fpsNum() / track.fpsDen() );
                         snprintf( key, sizeof(key), "meta.media.%d.stream.frame_rate_num", i );
                         m_parent->set( key, ( int64_t ) track.fpsNum() );
                         snprintf( key, sizeof(key), "meta.media.%d.stream.frame_rate_den", i );
                         m_parent->set( key, ( int64_t ) track.fpsDen() );
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.codec.frame_rate", i );
                         m_parent->set( key, ( double ) track.fpsNum() / track.fpsDen() );
                         snprintf( key, sizeof(key), "meta.media.%d.codec.frame_rate_num", i );
                         m_parent->set( key, ( int64_t ) track.fpsNum() );
                         snprintf( key, sizeof(key), "meta.media.%d.codec.frame_rate_den", i );
                         m_parent->set( key, ( int64_t ) track.fpsDen() );
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.stream.sample_aspect_ratio", i );
                         m_parent->set( key, ( double ) track.sarNum() / track.sarDen() );
                         snprintf( key, sizeof(key), "meta.media.%d.stream.frame_rate_num", i );
                         m_parent->set( key, ( int64_t ) track.sarNum() );
                         snprintf( key, sizeof(key), "meta.media.%d.stream.frame_rate_den", i );
                         m_parent->set( key, ( int64_t ) track.sarDen() );
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.codec.sample_aspect_ratio", i );
                         m_parent->set( key, ( double ) track.sarNum() / track.sarDen() );
                         snprintf( key, sizeof(key), "meta.media.%d.codec.frame_rate_num", i );
                         m_parent->set( key, ( int64_t ) track.sarNum() );
                         snprintf( key, sizeof(key), "meta.media.%d.codex.frame_rate_den", i );
                         m_parent->set( key, ( int64_t ) track.sarDen() );
-                        
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.codec.width", i );
                         m_parent->set( key, ( int64_t ) track.width() );
                         snprintf( key, sizeof(key), "meta.media.%d.codec.height", i );
@@ -122,7 +121,7 @@ public:
                     {
                         if ( m_audioIndex == -1 )
                             m_audioIndex = i;
-                        
+
                         snprintf( key, sizeof(key), "meta.media.%d.stream.type", i );
                         m_parent->set( key, "audio" );
                         snprintf( key, sizeof(key), "meta.media.%d.codec.sample_rate", i );
@@ -130,7 +129,7 @@ public:
                         snprintf( key, sizeof(key), "meta.media.%d.codec.channels", i );
                         m_parent->set( key, ( int64_t ) track.channels() );
                     }
-                        
+
                     snprintf( key, sizeof(key), "meta.media.%d.codec.fourcc", i );
                     m_parent->set( key, ( int64_t ) track.codec() );
                     snprintf( key, sizeof(key), "meta.media.%d.codec.original_fourcc", i );
@@ -139,7 +138,7 @@ public:
                     m_parent->set( key, ( int64_t ) track.bitrate() );
                     i++;
                 }
-                
+
                 if ( m_videoIndex != -1 )
                 {
                     m_parent->set( "width", ( int64_t ) tracks[m_videoIndex].width() );
@@ -156,7 +155,7 @@ public:
                     m_parent->set( "length", ( int ) ( m_media.duration() * mlt_profile_fps( ( mlt_profile ) m_parent->get_data( "_profile" ) ) ) / 1000 + 0.5 );
                     m_parent->set( "out", ( int ) m_parent->get_int( "length" ) - 1 );
                 }
-                
+
                 if ( m_audioIndex != -1 )
                 {
                     m_parent->set( "meta.media.sample_rate", ( int64_t ) tracks[m_audioIndex].rate() );
@@ -192,19 +191,19 @@ public:
                         ( intptr_t ) this,
                         ( intptr_t ) this
                 );
-                
+
                 m_media.addOption( smem_options );
                 m_mediaPlayer = VLC::MediaPlayer( m_media );
                 m_isValid = true;
             }
         }
     }
-    
+
     mlt_producer producer()
     {
         return m_parent->get_producer();
     }
-    
+
     bool isValid()
     {
         return m_isValid;
@@ -217,31 +216,31 @@ public:
         
         clearFrames();
     }
-    
+
     static VLC::Instance    instance;
 
 private:
-    
+
     struct Frame {
         ~Frame()
         {
             mlt_pool_release( buffer );
         }
-        
+
         uint8_t* buffer;
         int size;
         int64_t vlcTime;
         int iterator;
     };
-    
+
     static void audio_lock( void* data, uint8_t** buffer, size_t size )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
         vlcProducer->renderLock.lock();
-        
+
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
-    
+
     static void audio_unlock( void* data, uint8_t* buffer, unsigned int channels,
                               unsigned int rate, unsigned int nb_samples, unsigned int bps,
                               size_t size, int64_t pts )
@@ -253,22 +252,22 @@ private:
         frame->size = size;
         frame->iterator = 0;
         frame->vlcTime = vlcProducer->m_mediaPlayer.time();
-        
+
         vlcProducer->m_audioFrames.push_back( frame );
-        
+
         vlcProducer->packBufferToFrame();
         vlcProducer->renderLock.unlock();
         vlcProducer->m_cv.notify_all();
     }
-    
+
     static void video_lock( void* data, uint8_t** buffer, size_t size )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
         vlcProducer->renderLock.lock();
-        
+
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
-    
+
     static void video_unlock( void* data, uint8_t* buffer, int width, int height,
                               int bpp, size_t size, int64_t pts )
     {
@@ -278,44 +277,44 @@ private:
         frame->buffer = buffer;
         frame->size = size;
         frame->vlcTime = vlcProducer->m_mediaPlayer.time();
-        
+
         vlcProducer->m_videoFrames.push_back( frame );
-        
+
         vlcProducer->packBufferToFrame();
         vlcProducer->renderLock.unlock();
         vlcProducer->m_cv.notify_all();
     }
-    
+
     void packBufferToFrame()
     {
         int needed_samples = mlt_sample_calculator(
             mlt_profile_fps( ( mlt_profile ) m_parent->get_data( "_profile" ) ),
             m_parent->get_int64( "sample_rate" ),
             m_lastPosition );
-        
+
         int audio_buffer_size = mlt_audio_format_size( mlt_audio_s16, needed_samples,
                                                        m_parent->get_int64( "channels" ) );
-        
+
         if ( m_videoFrames.size() > 0 && m_audioFrames.size() > 0 &&
             ( int ) ( ( m_audioFrames.size() - 1 ) * m_audioFrames[0]->size ) >= audio_buffer_size )
         {
             auto mltFrame = std::make_shared<Mlt::Frame>( mlt_frame_init( m_parent->get_service() ) );
-            
+
             auto packedAudioBuffer = ( uint8_t* ) mlt_pool_alloc( audio_buffer_size );
             int iterator = 0;
             while ( iterator < audio_buffer_size )
             {
                 auto frontBuffer = m_audioFrames.front();
-                
+
                 while ( frontBuffer->iterator < frontBuffer->size && iterator < audio_buffer_size )
                     packedAudioBuffer[iterator++] = frontBuffer->buffer[frontBuffer->iterator++];
-                
+
                 if ( frontBuffer->iterator == frontBuffer->size )
                 {
                     m_audioFrames.pop_front();
                 }
             }
-            
+
             mlt_frame_set_audio( mltFrame->get_frame(), packedAudioBuffer, mlt_audio_s16,
                                  audio_buffer_size, ( mlt_destructor ) mlt_pool_release );
             mltFrame->set( "audio_frequency", m_parent->get_int64( "sample_rate" ) );
@@ -324,16 +323,16 @@ private:
             mltFrame->set( "audio_format", mlt_audio_s16 );
 
             auto videoFrame = m_videoFrames.front();
-            
+
             mlt_frame_set_image( mltFrame->get_frame(), videoFrame->buffer, videoFrame->size,
                                  ( mlt_destructor ) mlt_pool_release );
             mltFrame->set( "format", mlt_image_yuv422 );
             mltFrame->set( "width", m_parent->get_int( "width" ) );
             mltFrame->set( "height", m_parent->get_int( "height" ) );
             mltFrame->set( "vlc_position", videoFrame->vlcTime * mlt_profile_fps( ( mlt_profile ) m_parent->get_data( "_profile" ) ) / 1000 + 0.5 );
-            
+
             m_mltFrames.push_back( mltFrame );
-            
+
             videoFrame->buffer = nullptr;
             m_videoFrames.pop_front();
         }
@@ -355,19 +354,19 @@ private:
             vlcProducer->m_mediaPlayer.play();
         vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 100 ),
                                     [vlcProducer]{ return vlcProducer->m_isFrameReady; } );
-        
+
         if ( vlcProducer->m_mltFrames.size() >= 20 )
             vlcProducer->m_mediaPlayer.setPause( true );
         else if ( vlcProducer->m_mltFrames.size() <= 10 )
             vlcProducer->m_mediaPlayer.setPause( false );
-        
+
         auto posDiff = mlt_producer_position( producer ) - vlcProducer->m_lastPosition;
         bool toSeek = posDiff != 1;
         bool paused = posDiff == 0;
         if ( paused == true )
             vlcProducer->m_mediaPlayer.setPause( true );
         vlcProducer->m_lastPosition = mlt_producer_position( producer );
-        
+
         if ( vlcProducer->m_mltFrames.size() == 0 )
         {
             *frame = mlt_frame_init( MLT_PRODUCER_SERVICE( producer ) );
@@ -393,30 +392,30 @@ private:
         }
         return 0;
     }
-    
+
     void clearFrames()
     {
         m_audioFrames.clear();
         m_videoFrames.clear();
         m_mltFrames.clear();
     }
-    
+
     std::unique_ptr<Mlt::Producer>      m_parent;
-    
+
     VLC::Media          m_media;
     VLC::MediaPlayer    m_mediaPlayer;
-    
+
     std::deque<std::shared_ptr<Frame>>  m_videoFrames;
     std::deque<std::shared_ptr<Frame>>  m_audioFrames;
-    
+
     std::deque<std::shared_ptr<Mlt::Frame>> m_mltFrames;
-    
+
     bool                m_isValid;
 
     int                 m_audioIndex;
     int                 m_videoIndex;
     int                 m_lastPosition;
-    
+
     std::mutex          renderLock;
     bool                        m_isFrameReady;
     std::condition_variable     m_cv;
