@@ -356,7 +356,7 @@ private:
             vlcProducer->m_mediaPlayer.setPause( false );
         
         auto posDiff = mlt_producer_position( producer ) - vlcProducer->m_lastPosition;
-        bool toSeek = !( posDiff == 1 || posDiff == 2 );
+        bool toSeek = posDiff != 1;
         bool paused = posDiff == 0;
         if ( paused == true )
             vlcProducer->m_mediaPlayer.setPause( true );
