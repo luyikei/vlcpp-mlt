@@ -46,7 +46,7 @@ public:
             self->m_mediaPlayer.setVolume( self->m_parent->get_double( "volume" ) * 100 );
         }
     }
-    
+
     VLCConsumer( mlt_profile profile )
         : m_lastAudioPts( 0 )
         , m_lastVideoPts( 0 )
@@ -57,7 +57,7 @@ public:
         m_parent->listen( "property-changed", this, ( mlt_listener ) onPropertyChanged );
         m_parent->dec_ref();
         auto mlt_parent = m_parent->get_consumer();
-        
+
         m_parent->set( "input_image_format", mlt_image_yuv422 );
         m_parent->set( "input_audio_format", mlt_audio_s16 );
         m_parent->set( "buffer", 1 );
@@ -98,61 +98,61 @@ public:
 
         m_mediaPlayer = VLC::MediaPlayer( m_media );
     }
-    
+
     mlt_consumer consumer()
     {
         return m_parent->get_consumer();
     }
-    
+
     void setXWindow( int64_t id )
     {
         m_mediaPlayer.setXwindow( id );
     }
-    
+
     bool start()
     {
         setXWindow( m_parent->get_int64( "window_id" ) );
         return m_mediaPlayer.play();
     }
-    
+
     bool stop()
     {
         m_mediaPlayer.stop();
         clean();
         return true;
     }
-    
+
     bool isStopped()
     {
         return !m_mediaPlayer.isPlaying();
     }
-    
+
     void setPause( bool val )
     {
         m_mediaPlayer.setPause( val );
     }
-    
+
     void purge()
     {
         m_frames.clear();
     }
-    
+
     void clean()
     {
         m_lastAudioPts = 0;
         m_lastVideoPts = 0;
         purge();
     }
-    
+
     ~VLCConsumer()
     {
         purge();
     }
-    
+
     static const uint8_t     VideoCookie = '0';
     static const uint8_t     AudioCookie = '1';
     static VLC::Instance     instance;
-    
+
 private:
 
     static int imem_get( void* data, const char* cookie, int64_t* dts, int64_t* pts,
@@ -222,14 +222,14 @@ private:
         }
         else
             return 1;
-        
+
         return 0;
     }
-    
+
     static void imem_release( void* data, const char* cookie, size_t buffSize, void* buffer )
     {
         auto vlcConsumer = reinterpret_cast<VLCConsumer*>( data );
-        
+
         if ( cookie[0] == VLCConsumer::AudioCookie )
         {
             if ( vlcConsumer->m_lastAudioFrame == nullptr )
@@ -277,12 +277,12 @@ private:
         auto vlcConsumer = reinterpret_cast<VLCConsumer*>( parent->child );
         delete vlcConsumer;
     }
-    
+
     std::unique_ptr<Mlt::Consumer>      m_parent;
-    
+
     VLC::Media          m_media;
     VLC::MediaPlayer    m_mediaPlayer;
-    
+
     std::shared_ptr<Mlt::Frame>         m_lastAudioFrame;
     std::shared_ptr<Mlt::Frame>         m_lastVideoFrame;
 
@@ -291,7 +291,7 @@ private:
 
     int64_t             m_lastAudioPts;
     int64_t             m_lastVideoPts;
-    
+
 };
 
 const char * const argv[] = {
