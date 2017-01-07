@@ -31,8 +31,6 @@
 #include <chrono>
 #include <memory>
 
-#include <sys/time.h>
-
 #include <mlt++/MltProfile.h>
 #include <mlt++/MltProducer.h>
 
