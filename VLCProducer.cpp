@@ -241,9 +241,6 @@ private:
                               size_t size, int64_t pts )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
-        
-        if ( vlcProducer->m_audioFrames.size() >= 20 )
-            vlcProducer->m_mediaPlayer.setPause( true );
 
         auto frame = std::make_shared<Frame>();
         frame->buffer = buffer;
@@ -270,9 +267,6 @@ private:
                               int bpp, size_t size, int64_t pts )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
-        
-        if ( vlcProducer->m_videoFrames.size() >= 20 )
-            vlcProducer->m_mediaPlayer.setPause( true );
 
         auto frame = std::make_shared<Frame>();
         frame->buffer = buffer;
