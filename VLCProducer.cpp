@@ -46,6 +46,7 @@ public:
         , m_videoIndex( -1 )
         , m_lastPosition( -1 )
         , m_isFrameReady( false )
+        , m_isTooManyFrames( false )
     {
         if ( !file )
             return;
@@ -234,6 +235,12 @@ private:
     static void audio_lock( void* data, uint8_t** buffer, size_t size )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
+        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+        if ( vlcProducer->m_mltFrames.size() >= 20 )
+            vlcProducer->m_isTooManyFrames = true;
+        else if ( vlcProducer->m_mltFrames.size() <= 10 )
+            vlcProducer->m_isTooManyFrames = false;
+        vlcProducer->m_cv.wait( lck, [vlcProducer]{ return vlcProducer->m_isTooManyFrames == false; } );
         vlcProducer->renderLock.lock();
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
@@ -261,6 +268,12 @@ private:
     static void video_lock( void* data, uint8_t** buffer, size_t size )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
+        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+        if ( vlcProducer->m_mltFrames.size() >= 20 )
+            vlcProducer->m_isTooManyFrames = true;
+        else if ( vlcProducer->m_mltFrames.size() <= 10 )
+            vlcProducer->m_isTooManyFrames = false;
+        vlcProducer->m_cv.wait( lck, [vlcProducer]{ return vlcProducer->m_isTooManyFrames == false; } );
         vlcProducer->renderLock.lock();
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
@@ -354,9 +367,16 @@ private:
                                     [vlcProducer]{ return vlcProducer->m_isFrameReady; } );
 
         if ( vlcProducer->m_mltFrames.size() >= 20 )
+        {
             vlcProducer->m_mediaPlayer.setPause( true );
+            vlcProducer->m_isTooManyFrames = true;
+        }
         else if ( vlcProducer->m_mltFrames.size() <= 10 )
+        {
             vlcProducer->m_mediaPlayer.setPause( false );
+            vlcProducer->m_isTooManyFrames = false;
+        }
+        vlcProducer->m_cv.notify_all();
 
         auto posDiff = mlt_producer_position( producer ) - vlcProducer->m_lastPosition;
         bool toSeek = posDiff != 1;
@@ -415,7 +435,9 @@ private:
     int                 m_lastPosition;
 
     std::mutex          renderLock;
+    std::mutex          m_safeLock;
     bool                        m_isFrameReady;
+    bool                        m_isTooManyFrames;
     std::condition_variable     m_cv;
 };
 
