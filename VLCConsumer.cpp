@@ -1,5 +1,5 @@
 /*****************************************************************************
- * factory.c: factory for vlcpp-mlt plugins
+ * VLCConsumer.cpp: Implementation for vlc consumer
  *****************************************************************************
  * Copyright (C) 2008-2016 Yikei Lu
  *

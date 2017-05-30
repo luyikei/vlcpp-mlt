@@ -1,5 +1,5 @@
 /*****************************************************************************
- * factory.c: factory for vlcpp-mlt plugins
+ * VLCProducer.cpp: Implementation for vlc producer
  *****************************************************************************
  * Copyright (C) 2008-2016 Yikei Lu
  *
