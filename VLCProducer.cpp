@@ -363,7 +363,7 @@ private:
         std::unique_lock<std::mutex> lck( vlcProducer->renderLock );
         if ( vlcProducer->m_mediaPlayer.isPlaying() == false )
             vlcProducer->m_mediaPlayer.play();
-        vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 100 ),
+        vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 1000 ),
                                     [vlcProducer]{ return vlcProducer->m_isFrameReady; } );
 
         if ( vlcProducer->m_mltFrames.size() >= 20 )
