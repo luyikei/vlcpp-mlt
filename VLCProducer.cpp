@@ -406,6 +406,7 @@ private:
                     vlcProducer->m_mediaPlayer.setTime( vlcProducer->m_lastPosition * 1000.0 / mlt_profile_fps( ( mlt_profile ) vlcProducer->m_parent->get_data( "_profile" ) ) + 0.5 );
                     vlcProducer->clearFrames();
                 }
+                vlcProducer->m_isFrameReady = vlcProducer->m_mltFrames.size() > 0;
             }
         }
         return 0;
