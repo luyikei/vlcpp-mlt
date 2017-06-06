@@ -167,7 +167,7 @@ public:
                 sprintf( smem_options,
                         ":sout=#transcode{"
                         "vcodec=%s,"
-                        "fps=%d/%d,"\
+                        "fps=%d/%d,"
                         "acodec=%s,"
                         "}:smem{"
                         "time-sync,"
@@ -181,7 +181,7 @@ public:
                         "}",
                         "YUY2",
                         profile->frame_rate_num,
-                        profile->frame_rate_den,\
+                        profile->frame_rate_den,
                         "s16l",
                         ( intptr_t ) &audio_lock,
                         ( intptr_t ) &audio_unlock,
