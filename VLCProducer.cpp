@@ -240,7 +240,7 @@ private:
             vlcProducer->m_isTooManyFrames = true;
         else if ( vlcProducer->m_mltFrames.size() <= 10 )
             vlcProducer->m_isTooManyFrames = false;
-        vlcProducer->m_cv.wait( lck, [vlcProducer]{ return vlcProducer->m_isTooManyFrames == false; } );
+        vlcProducer->m_cv2.wait( lck, [vlcProducer]{ return vlcProducer->m_isTooManyFrames == false; } );
         vlcProducer->renderLock.lock();
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
@@ -262,7 +262,7 @@ private:
 
         vlcProducer->packBufferToFrame();
         vlcProducer->renderLock.unlock();
-        vlcProducer->m_cv.notify_all();
+        vlcProducer->m_cv.notify_one();
     }
 
     static void video_lock( void* data, uint8_t** buffer, size_t size )
@@ -273,7 +273,7 @@ private:
             vlcProducer->m_isTooManyFrames = true;
         else if ( vlcProducer->m_mltFrames.size() <= 10 )
             vlcProducer->m_isTooManyFrames = false;
-        vlcProducer->m_cv.wait( lck, [vlcProducer]{ return vlcProducer->m_isTooManyFrames == false; } );
+        vlcProducer->m_cv2.wait( lck, [vlcProducer]{ return vlcProducer->m_isTooManyFrames == false; } );
         vlcProducer->renderLock.lock();
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
@@ -293,7 +293,7 @@ private:
 
         vlcProducer->packBufferToFrame();
         vlcProducer->renderLock.unlock();
-        vlcProducer->m_cv.notify_all();
+        vlcProducer->m_cv.notify_one();
     }
 
     void packBufferToFrame()
@@ -376,7 +376,7 @@ private:
             vlcProducer->m_mediaPlayer.setPause( false );
             vlcProducer->m_isTooManyFrames = false;
         }
-        vlcProducer->m_cv.notify_all();
+        vlcProducer->m_cv2.notify_all();
 
         auto posDiff = mlt_producer_position( producer ) - vlcProducer->m_lastPosition;
         bool toSeek = posDiff != 1;
@@ -438,7 +438,8 @@ private:
     std::mutex          m_safeLock;
     bool                        m_isFrameReady;
     bool                        m_isTooManyFrames;
-    std::condition_variable     m_cv;
+    std::condition_variable     m_cv;  // For m_isFrameReady
+    std::condition_variable     m_cv2; // For m_isTooManyFrames
 };
 
 
