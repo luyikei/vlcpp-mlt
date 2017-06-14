@@ -395,7 +395,7 @@ private:
         else
             vlcProducer->m_isAudioFrameReady = false;
 
-        std::unique_lock<std::mutex> lck( vlcProducer->renderLock );
+        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
         vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 1000 ),
                                     [vlcProducer]{ return vlcProducer->m_isAudioFrameReady; } );
 
@@ -477,15 +477,17 @@ private:
                                    ( mlt_destructor ) producer_close );
         }
 
-        std::unique_lock<std::mutex> lck( vlcProducer->renderLock );
-        if ( vlcProducer->m_mediaPlayer.isPlaying() == false )
-            vlcProducer->m_mediaPlayer.play();
 
         *frame = mlt_frame_init( MLT_PRODUCER_SERVICE( producer ) );
 
         mlt_properties_set_position( MLT_FRAME_PROPERTIES( *frame ), "original_position", mlt_producer_frame( producer ) );
-        mlt_frame_set_position( *frame, vlcProducer->m_lastPosition );
         mlt_producer_prepare_next( producer );
+        {
+            std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+            if ( vlcProducer->m_mediaPlayer.isPlaying() == false )
+                vlcProducer->m_mediaPlayer.play();
+            mlt_frame_set_position( *frame, vlcProducer->m_lastPosition );
+        }
 
         mlt_frame_push_service( *frame, vlcProducer );
         mlt_frame_push_get_image( *frame, producer_get_image );
@@ -518,7 +520,6 @@ private:
     mlt_position        m_audioExpected;
     mlt_position        m_videoExpected;
 
-    std::mutex          renderLock;
     std::mutex          m_safeLock;
     bool                        m_isAudioFrameReady;
     bool                        m_isVideoFrameReady;
