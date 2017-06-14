@@ -41,7 +41,6 @@ class VLCProducer
 public:
     VLCProducer( mlt_profile profile, char* file, mlt_producer parent = nullptr )
         : m_parent( nullptr )
-        , m_isValid( false )
         , m_audioIndex( -1 )
         , m_videoIndex( -1 )
         , m_lastPosition( -1 )
@@ -199,7 +198,6 @@ public:
 
                 m_media.addOption( smem_options );
                 m_mediaPlayer = VLC::MediaPlayer( m_media );
-                m_isValid = true;
             }
             mlt_service_cache_put( MLT_PRODUCER_SERVICE( parent ), "vlcProducer", this, 0,
                                    ( mlt_destructor ) producer_close );
@@ -213,7 +211,7 @@ public:
 
     bool isValid()
     {
-        return m_isValid;
+        return m_mediaPlayer.isValid();
     }
 
     ~VLCProducer()
@@ -511,8 +509,6 @@ private:
 
     std::deque<std::shared_ptr<Frame>>  m_videoFrames;
     std::deque<std::shared_ptr<Frame>>  m_audioFrames;
-
-    bool                m_isValid;
 
     int                 m_audioIndex;
     int                 m_videoIndex;
