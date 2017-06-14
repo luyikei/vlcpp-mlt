@@ -233,7 +233,6 @@ private:
 
         uint8_t* buffer;
         int size;
-        int64_t vlcTime;
         int iterator;
     };
 
@@ -247,7 +246,7 @@ private:
         else
             vlcProducer->m_isAudioTooManyFrames = false;
 
-        vlcProducer->m_cv2.wait( lck, [vlcProducer]{ return vlcProducer->m_isAudioTooManyFrames == false; } );
+        vlcProducer->m_tooManyFramesCond.wait( lck, [vlcProducer]{ return vlcProducer->m_isAudioTooManyFrames == false; } );
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
@@ -258,16 +257,16 @@ private:
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
 
-        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
         auto frame = std::make_shared<Frame>();
         frame->buffer = buffer;
         frame->size = size;
         frame->iterator = 0;
-        frame->vlcTime = vlcProducer->m_mediaPlayer.time();
 
+        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+        vlcProducer->m_audioFramesTotalSize += size;
         vlcProducer->m_audioFrames.push_back( frame );
         vlcProducer->m_isAudioFrameReady = true;
-        vlcProducer->m_cv.notify_all();
+        vlcProducer->m_frameReadyCond.notify_all();
     }
 
     static void video_lock( void* data, uint8_t** buffer, size_t size )
@@ -280,7 +279,7 @@ private:
         else
             vlcProducer->m_isVideoTooManyFrames = false;
 
-        vlcProducer->m_cv2.wait( lck, [vlcProducer]{ return vlcProducer->m_isVideoTooManyFrames == false; } );
+        vlcProducer->m_tooManyFramesCond.wait( lck, [vlcProducer]{ return vlcProducer->m_isVideoTooManyFrames == false; } );
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
@@ -290,15 +289,14 @@ private:
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
 
-        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
         auto frame = std::make_shared<Frame>();
         frame->buffer = buffer;
         frame->size = size;
-        frame->vlcTime = vlcProducer->m_mediaPlayer.time();
 
+        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
         vlcProducer->m_videoFrames.push_back( frame );
         vlcProducer->m_isVideoFrameReady = true;
-        vlcProducer->m_cv.notify_all();
+        vlcProducer->m_frameReadyCond.notify_all();
     }
 
     static void producer_close( mlt_producer parent )
@@ -318,15 +316,16 @@ private:
             vlcProducer->m_isVideoFrameReady = true;
         else
             vlcProducer->m_isVideoFrameReady = false;
+
         std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
-        vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 1000 ),
-                                    [vlcProducer]{ return vlcProducer->m_isVideoFrameReady; } );
+        vlcProducer->m_frameReadyCond.wait_for( lck, std::chrono::milliseconds( 1000 ),
+                                    [vlcProducer]{ return vlcProducer->m_isVideoFrameReady && vlcProducer->m_isAudioFrameReady; } );
 
         if ( vlcProducer->m_videoFrames.size() >= 20 )
             vlcProducer->m_isVideoTooManyFrames = true;
         else
             vlcProducer->m_isVideoTooManyFrames = false;
-        vlcProducer->m_cv2.notify_all();
+        vlcProducer->m_tooManyFramesCond.notify_all();
 
         *format = mlt_image_yuv422;
         *width = vlcProducer->m_parent->get_int( "width" );
@@ -388,22 +387,6 @@ private:
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( mlt_frame_pop_audio( frame ) );
 
-        if ( vlcProducer->m_audioFrames.size() > 0 )
-            vlcProducer->m_isAudioFrameReady = true;
-        else
-            vlcProducer->m_isAudioFrameReady = false;
-
-        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
-        vlcProducer->m_cv.wait_for( lck, std::chrono::milliseconds( 1000 ),
-                                    [vlcProducer]{ return vlcProducer->m_isAudioFrameReady; } );
-
-        if ( vlcProducer->m_audioFrames.size() >= 100 )
-            vlcProducer->m_isAudioTooManyFrames = true;
-        else
-            vlcProducer->m_isAudioTooManyFrames = false;
-        vlcProducer->m_cv2.notify_all();
-
-
         double fps = vlcProducer->m_parent->get_fps();
         if ( mlt_properties_get( MLT_FRAME_PROPERTIES( frame ), "producer_consumer_fps" ) )
             fps = mlt_properties_get_double( MLT_FRAME_PROPERTIES(frame), "producer_consumer_fps" );
@@ -413,15 +396,29 @@ private:
             vlcProducer->m_parent->get_int64( "sample_rate" ),
             vlcProducer->m_lastPosition );
 
-        int audio_buffer_size = mlt_audio_format_size( mlt_audio_s16, needed_samples,
-                                                       vlcProducer->m_parent->get_int64( "channels" ) );
+        unsigned int audio_buffer_size = mlt_audio_format_size( mlt_audio_s16, needed_samples,
+                                                                vlcProducer->m_parent->get_int64( "channels" ) );
 
-        auto packedAudioBuffer = ( uint8_t* ) mlt_pool_alloc( audio_buffer_size );\
+        if ( vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
+            vlcProducer->m_isAudioFrameReady = true;
+        else
+            vlcProducer->m_isAudioFrameReady = false;
 
-        if ( vlcProducer->m_audioFrames.size() > 0 &&
-             ( int ) ( ( vlcProducer->m_audioFrames.size() - 1 ) * vlcProducer->m_audioFrames[0]->size ) >= audio_buffer_size )
+        std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+        vlcProducer->m_frameReadyCond.wait_for( lck, std::chrono::milliseconds( 1000 ),
+                                    [vlcProducer]{ return vlcProducer->m_isVideoFrameReady && vlcProducer->m_isAudioFrameReady; } );
+
+        if ( vlcProducer->m_audioFrames.size() >= 100 )
+            vlcProducer->m_isAudioTooManyFrames = true;
+        else
+            vlcProducer->m_isAudioTooManyFrames = false;
+        vlcProducer->m_tooManyFramesCond.notify_all();
+
+        auto packedAudioBuffer = ( uint8_t* ) mlt_pool_alloc( audio_buffer_size );
+
+        if ( vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
         {
-            int iterator = 0;
+            unsigned  iterator = 0;
             while ( iterator < audio_buffer_size )
             {
                 auto frontBuffer = vlcProducer->m_audioFrames.front();
@@ -431,6 +428,7 @@ private:
 
                 if ( frontBuffer->iterator == frontBuffer->size )
                 {
+                    vlcProducer->m_audioFramesTotalSize -= frontBuffer->size;
                     vlcProducer->m_audioFrames.pop_front();
                 }
             }
@@ -500,6 +498,7 @@ private:
     {
         m_audioFrames.clear();
         m_videoFrames.clear();
+        m_audioFramesTotalSize = 0;
     }
 
     std::unique_ptr<Mlt::Producer>      m_parent;
@@ -512,17 +511,21 @@ private:
 
     int                 m_audioIndex;
     int                 m_videoIndex;
+
+    u_int64_t           m_audioFramesTotalSize;
+
     int                 m_lastPosition;
     mlt_position        m_audioExpected;
     mlt_position        m_videoExpected;
 
     std::mutex          m_safeLock;
+
     bool                        m_isAudioFrameReady;
     bool                        m_isVideoFrameReady;
     bool                        m_isAudioTooManyFrames;
     bool                        m_isVideoTooManyFrames;
-    std::condition_variable     m_cv;  // For m_isFrameReady
-    std::condition_variable     m_cv2; // For m_isTooManyFrames
+    std::condition_variable     m_frameReadyCond;  // For m_isFrameReady
+    std::condition_variable     m_tooManyFramesCond; // For m_isTooManyFrames
 };
 
 
