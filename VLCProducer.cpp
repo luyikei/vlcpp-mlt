@@ -43,6 +43,7 @@ public:
         : m_parent( nullptr )
         , m_audioIndex( -1 )
         , m_videoIndex( -1 )
+        , m_audioFramesTotalSize( 0 )
         , m_lastPosition( -1 )
         , m_audioExpected( 0 )
         , m_videoExpected( 0 )
@@ -218,7 +219,6 @@ public:
     {
         if ( m_mediaPlayer != nullptr )
             m_mediaPlayer.stop();
-        clearFrames();
     }
 
     static VLC::Instance    instance;
