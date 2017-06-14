@@ -144,10 +144,7 @@ public:
         purge();
     }
 
-    ~VLCConsumer()
-    {
-        purge();
-    }
+    ~VLCConsumer() = default;
 
     static const uint8_t     VideoCookie = '0';
     static const uint8_t     AudioCookie = '1';
