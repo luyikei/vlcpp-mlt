@@ -44,7 +44,8 @@ public:
         , m_audioIndex( -1 )
         , m_videoIndex( -1 )
         , m_audioFramesTotalSize( 0 )
-        , m_lastPosition( -1 )
+        , m_videoLastPosition( -1 )
+        , m_audioLastPosition( -1 )
         , m_audioExpected( 0 )
         , m_videoExpected( 0 )
         , m_isAudioFrameReady( false )
@@ -174,31 +175,47 @@ public:
                         ":sout=#transcode{"
                         "fps=%d/%d,"
                         "vcodec=%s,"
+                        "}:smem{"
+                        "time-sync,"
+                        "no-sout-smem-time-sync,"
+                        "video-prerender-callback=%" PRIdPTR ","
+                        "video-postrender-callback=%" PRIdPTR ","
+                        "video-data=%" PRIdPTR ","
+                        "}",
+                        profile->frame_rate_num,
+                        profile->frame_rate_den,
+                        "YUY2",
+                        ( intptr_t ) &video_lock,
+                        ( intptr_t ) &video_unlock,
+                        ( intptr_t ) this
+                );
+
+                m_media.addOption( smem_options );
+                m_media.addOption( ":no-audio" );
+                m_media.addOption( ":no-sout-audio" );
+                m_videoMediaPlayer = VLC::MediaPlayer( m_media );
+
+                auto media = VLC::Media( instance, std::string( file ), VLC::Media::FromType::FromLocation );
+                sprintf( smem_options,
+                        ":sout=#transcode{"
                         "acodec=%s,"
                         "}:smem{"
                         "time-sync,"
                         "no-sout-smem-time-sync,"
                         "audio-prerender-callback=%" PRIdPTR ","
                         "audio-postrender-callback=%" PRIdPTR ","
-                        "video-prerender-callback=%" PRIdPTR ","
-                        "video-postrender-callback=%" PRIdPTR ","
                         "audio-data=%" PRIdPTR ","
-                        "video-data=%" PRIdPTR ","
                         "}",
-                        profile->frame_rate_num,
-                        profile->frame_rate_den,
-                        "YUY2",
                         "s16l",
                         ( intptr_t ) &audio_lock,
                         ( intptr_t ) &audio_unlock,
-                        ( intptr_t ) &video_lock,
-                        ( intptr_t ) &video_unlock,
-                        ( intptr_t ) this,
                         ( intptr_t ) this
                 );
 
-                m_media.addOption( smem_options );
-                m_mediaPlayer = VLC::MediaPlayer( m_media );
+                media.addOption( smem_options );
+                media.addOption( ":no-video" );
+                media.addOption( ":no-sout-video" );
+                m_audioMediaPlayer = VLC::MediaPlayer( media );
             }
             mlt_service_cache_put( MLT_PRODUCER_SERVICE( parent ), "vlcProducer", this, 0,
                                    ( mlt_destructor ) producer_close );
@@ -212,13 +229,15 @@ public:
 
     bool isValid()
     {
-        return m_mediaPlayer.isValid();
+        return m_videoMediaPlayer.isValid() && m_audioMediaPlayer.isValid();
     }
 
     ~VLCProducer()
     {
-        if ( m_mediaPlayer != nullptr )
-            m_mediaPlayer.stop();
+        if ( m_videoMediaPlayer.isValid() == true )
+            m_videoMediaPlayer.stop();
+        if ( m_audioMediaPlayer.isValid() == true )
+            m_audioMediaPlayer.stop();
     }
 
     static VLC::Instance    instance;
@@ -310,7 +329,6 @@ private:
                                    mlt_image_format* format, int* width, int* height, int writable )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( mlt_frame_pop_service( frame ) );
-        auto producer = vlcProducer->producer();
 
         if ( vlcProducer->m_videoFrames.size() > 0 )
             vlcProducer->m_isVideoFrameReady = true;
@@ -318,8 +336,12 @@ private:
             vlcProducer->m_isVideoFrameReady = false;
 
         std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+
+        if ( vlcProducer->m_videoMediaPlayer.isPlaying() == false )
+            vlcProducer->m_videoMediaPlayer.play();
+
         vlcProducer->m_frameReadyCond.wait_for( lck, std::chrono::milliseconds( 1000 ),
-                                    [vlcProducer]{ return vlcProducer->m_isVideoFrameReady && vlcProducer->m_isAudioFrameReady; } );
+                                    [vlcProducer]{ return vlcProducer->m_isVideoFrameReady; } );
 
         if ( vlcProducer->m_videoFrames.size() >= 20 )
             vlcProducer->m_isVideoTooManyFrames = true;
@@ -336,8 +358,8 @@ private:
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ),"width", vlcProducer->m_parent->get_int( "width" ) );
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ),"height", vlcProducer->m_parent->get_int( "height" ) );
 
-        vlcProducer->m_lastPosition = mlt_producer_position( producer );
-        auto posDiff = vlcProducer->m_videoExpected - vlcProducer->m_lastPosition;
+        vlcProducer->m_videoLastPosition = mlt_frame_original_position( frame );
+        auto posDiff = vlcProducer->m_videoExpected - vlcProducer->m_videoLastPosition;
         bool toSeek = posDiff > 1 || posDiff <= -12;
         bool paused = posDiff == 1;
 
@@ -371,13 +393,12 @@ private:
             // Seek
             if ( toSeek )
             {
-                vlcProducer->m_videoExpected = vlcProducer->m_lastPosition;
-                vlcProducer->m_mediaPlayer.setTime( vlcProducer->m_lastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
-                vlcProducer->clearFrames();
+                vlcProducer->m_videoMediaPlayer.setTime( vlcProducer->m_videoLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
+                vlcProducer->m_videoFrames.clear();
             }
         }
 
-        vlcProducer->m_videoExpected = vlcProducer->m_lastPosition + 1;
+        vlcProducer->m_videoExpected = vlcProducer->m_videoLastPosition + 1;
 
         return 0;
     }
@@ -394,7 +415,7 @@ private:
         int needed_samples = mlt_sample_calculator(
             fps,
             vlcProducer->m_parent->get_int64( "sample_rate" ),
-            vlcProducer->m_lastPosition );
+            vlcProducer->m_audioLastPosition );
 
         unsigned int audio_buffer_size = mlt_audio_format_size( mlt_audio_s16, needed_samples,
                                                                 vlcProducer->m_parent->get_int64( "channels" ) );
@@ -405,8 +426,12 @@ private:
             vlcProducer->m_isAudioFrameReady = false;
 
         std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
+
+        if ( vlcProducer->m_audioMediaPlayer.isPlaying() == false )
+            vlcProducer->m_audioMediaPlayer.play();
+
         vlcProducer->m_frameReadyCond.wait_for( lck, std::chrono::milliseconds( 1000 ),
-                                    [vlcProducer]{ return vlcProducer->m_isVideoFrameReady && vlcProducer->m_isAudioFrameReady; } );
+                                    [vlcProducer]{ return vlcProducer->m_isAudioFrameReady; } );
 
         if ( vlcProducer->m_audioFrames.size() >= 100 )
             vlcProducer->m_isAudioTooManyFrames = true;
@@ -415,6 +440,11 @@ private:
         vlcProducer->m_tooManyFramesCond.notify_all();
 
         auto packedAudioBuffer = ( uint8_t* ) mlt_pool_alloc( audio_buffer_size );
+        vlcProducer->m_audioLastPosition = mlt_frame_original_position( frame );
+        auto posDiff = vlcProducer->m_audioExpected - vlcProducer->m_audioLastPosition;
+        bool toSeek = posDiff > 1 || posDiff <= -12;
+        bool paused = posDiff == 1;
+
 
         if ( vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
         {
@@ -450,7 +480,18 @@ private:
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ), "audio_samples", needed_samples );
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ), "audio_format", mlt_audio_s16 );
 
-        vlcProducer->m_audioExpected++;
+        if ( paused == false )
+        {
+            // Seek
+            if ( toSeek )
+            {
+                vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
+                vlcProducer->m_audioFrames.clear();
+                vlcProducer->m_audioFramesTotalSize = 0;
+            }
+        }
+
+        vlcProducer->m_audioExpected = vlcProducer->m_audioLastPosition + 1;
 
         return 0;
     }
@@ -476,14 +517,9 @@ private:
 
         *frame = mlt_frame_init( MLT_PRODUCER_SERVICE( producer ) );
 
+        mlt_frame_set_position( *frame, mlt_producer_position( producer ) );
         mlt_properties_set_position( MLT_FRAME_PROPERTIES( *frame ), "original_position", mlt_producer_frame( producer ) );
         mlt_producer_prepare_next( producer );
-        {
-            std::unique_lock<std::mutex> lck( vlcProducer->m_safeLock );
-            if ( vlcProducer->m_mediaPlayer.isPlaying() == false )
-                vlcProducer->m_mediaPlayer.play();
-            mlt_frame_set_position( *frame, vlcProducer->m_lastPosition );
-        }
 
         mlt_frame_push_service( *frame, vlcProducer );
         mlt_frame_push_get_image( *frame, producer_get_image );
@@ -504,7 +540,8 @@ private:
     std::unique_ptr<Mlt::Producer>      m_parent;
 
     VLC::Media          m_media;
-    VLC::MediaPlayer    m_mediaPlayer;
+    VLC::MediaPlayer    m_videoMediaPlayer;
+    VLC::MediaPlayer    m_audioMediaPlayer;
 
     std::deque<std::shared_ptr<Frame>>  m_videoFrames;
     std::deque<std::shared_ptr<Frame>>  m_audioFrames;
@@ -514,7 +551,8 @@ private:
 
     u_int64_t           m_audioFramesTotalSize;
 
-    int                 m_lastPosition;
+    int                 m_videoLastPosition;
+    int                 m_audioLastPosition;
     mlt_position        m_audioExpected;
     mlt_position        m_videoExpected;
 
