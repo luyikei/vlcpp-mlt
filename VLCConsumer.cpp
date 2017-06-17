@@ -136,7 +136,8 @@ public:
 
     void purge()
     {
-        m_frames.clear();
+        m_audioFrames.clear();
+        m_videoFrames.clear();
     }
 
     void clean()
@@ -158,23 +159,22 @@ private:
     {
         auto vlcConsumer = reinterpret_cast<VLCConsumer*>( data );
 
-        std::shared_ptr<Mlt::Frame> frame;
-        bool cleanup_frame = false;
-
-        if ( vlcConsumer->m_frames.size() > 0 )
-        {
-            frame = vlcConsumer->m_frames.front();
-            vlcConsumer->m_frames.pop_front();
-            cleanup_frame = true;
-        }
-        else
-        {
-            frame = std::make_shared<Mlt::Frame>( mlt_consumer_rt_frame( vlcConsumer->m_parent->get_consumer() ) );
-            frame->dec_ref();
-        }
-
         if ( cookie[0] == VLCConsumer::AudioCookie )
         {
+            std::shared_ptr<Mlt::Frame> frame;
+
+            bool cleanup;
+            if ( ( cleanup = vlcConsumer->m_audioFrames.size() > 0 ) )
+            {
+                frame = vlcConsumer->m_audioFrames.front();
+                vlcConsumer->m_audioFrames.pop_front();
+            }
+            else
+            {
+                frame = std::make_shared<Mlt::Frame>( mlt_consumer_rt_frame( vlcConsumer->m_parent->get_consumer() ) );
+                frame->dec_ref();
+            }
+
             mlt_audio_format audioFormat = mlt_audio_s16;
             int frequency = frame->get_int( "audio_frequency" );
             int channels = frame->get_int( "audio_channels" );
@@ -194,13 +194,27 @@ private:
             vlcConsumer->m_lastAudioPts = *pts;
             *dts = *pts;
 
-            if ( cleanup_frame )
+            if ( cleanup == true )
                 vlcConsumer->m_lastAudioFrame = frame;
             else
-                vlcConsumer->m_frames.push_back( frame );
+                vlcConsumer->m_videoFrames.push_back( frame );
         }
         else if ( cookie[0] == VLCConsumer::VideoCookie )
         {
+            std::shared_ptr<Mlt::Frame> frame;
+
+            bool cleanup;
+            if ( ( cleanup = vlcConsumer->m_videoFrames.size() > 0 ) )
+            {
+                frame = vlcConsumer->m_videoFrames.front();
+                vlcConsumer->m_videoFrames.pop_front();
+            }
+            else
+            {
+                frame = std::make_shared<Mlt::Frame>( mlt_consumer_rt_frame( vlcConsumer->m_parent->get_consumer() ) );
+                frame->dec_ref();
+            }
+
             mlt_image_format videoFormat = mlt_image_yuv422;
             int width = frame->get_int( "width" );
             int height = frame->get_int( "height" );
@@ -213,10 +227,10 @@ private:
             vlcConsumer->m_lastVideoPts = *pts;
             *dts = *pts;
 
-            if ( cleanup_frame )
+            if ( cleanup == true )
                 vlcConsumer->m_lastVideoFrame = frame;
             else
-                vlcConsumer->m_frames.push_back( frame );
+                vlcConsumer->m_audioFrames.push_back( frame );
         }
         else
             return 1;
@@ -285,7 +299,8 @@ private:
     std::shared_ptr<Mlt::Frame>         m_lastVideoFrame;
 
     // This is a trick to avoid calling mlt_consumer_rt_frame twice ( for audio and video ) for one frame.
-    std::deque<std::shared_ptr<Mlt::Frame>> m_frames;
+    std::deque<std::shared_ptr<Mlt::Frame>> m_audioFrames;
+    std::deque<std::shared_ptr<Mlt::Frame>> m_videoFrames;
 
     int64_t             m_lastAudioPts;
     int64_t             m_lastVideoPts;
