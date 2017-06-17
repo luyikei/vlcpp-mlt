@@ -393,14 +393,13 @@ private:
         *buffer = newFrame;
         mlt_frame_set_image( frame, newFrame, size,
                              ( mlt_destructor ) mlt_pool_release );
-
         if ( paused == false )
         {
             // Seek
-            if ( toSeek )
+            if ( toSeek == true )
             {
-                vlcProducer->m_videoMediaPlayer.setTime( vlcProducer->m_videoLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
                 vlcProducer->m_videoFrames.clear();
+                vlcProducer->m_videoMediaPlayer.setTime( vlcProducer->m_videoLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
             }
         }
 
@@ -489,11 +488,11 @@ private:
         if ( paused == false )
         {
             // Seek
-            if ( toSeek )
+            if ( toSeek == true )
             {
-                vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
                 vlcProducer->m_audioFrames.clear();
                 vlcProducer->m_audioFramesTotalSize = 0;
+                vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
             }
         }
 
