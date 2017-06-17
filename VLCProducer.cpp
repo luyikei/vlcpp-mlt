@@ -451,7 +451,7 @@ private:
         bool paused = posDiff == 1;
 
 
-        if ( vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
+        if ( paused == false && vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
         {
             unsigned  iterator = 0;
             while ( iterator < audio_buffer_size )
