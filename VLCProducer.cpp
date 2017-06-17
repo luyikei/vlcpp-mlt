@@ -253,7 +253,7 @@ private:
 
         uint8_t* buffer;
         int size;
-        int iterator;
+        unsigned iterator;
     };
 
     static void audio_lock( void* data, uint8_t** buffer, size_t size )
