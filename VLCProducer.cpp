@@ -178,11 +178,10 @@ public:
                         "fps=%d/%d,"
                         "vcodec=%s,"
                         "}:smem{"
-                        "time-sync,"
-                        "no-sout-smem-time-sync,"
                         "video-prerender-callback=%" PRIdPTR ","
                         "video-postrender-callback=%" PRIdPTR ","
                         "video-data=%" PRIdPTR ","
+                        "no-time-sync"
                         "}",
                         profile->frame_rate_num,
                         profile->frame_rate_den,
@@ -202,11 +201,10 @@ public:
                         ":sout=#transcode{"
                         "acodec=%s,"
                         "}:smem{"
-                        "time-sync,"
-                        "no-sout-smem-time-sync,"
                         "audio-prerender-callback=%" PRIdPTR ","
                         "audio-postrender-callback=%" PRIdPTR ","
                         "audio-data=%" PRIdPTR ","
+                        "no-time-sync"
                         "}",
                         "s16l",
                         ( intptr_t ) &audio_lock,
