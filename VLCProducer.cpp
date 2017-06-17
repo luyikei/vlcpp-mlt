@@ -199,6 +199,7 @@ public:
                 auto media = VLC::Media( instance, std::string( file ), VLC::Media::FromType::FromLocation );
                 sprintf( smem_options,
                         ":sout=#transcode{"
+                        "fps=%d/%d,"
                         "acodec=%s,"
                         "}:smem{"
                         "audio-prerender-callback=%" PRIdPTR ","
@@ -206,6 +207,8 @@ public:
                         "audio-data=%" PRIdPTR ","
                         "no-time-sync"
                         "}",
+                        profile->frame_rate_num,
+                        profile->frame_rate_den,
                         "s16l",
                         ( intptr_t ) &audio_lock,
                         ( intptr_t ) &audio_unlock,
