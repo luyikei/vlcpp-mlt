@@ -458,13 +458,19 @@ private:
             {
                 auto frontBuffer = vlcProducer->m_audioFrames.front();
 
-                while ( frontBuffer->iterator < frontBuffer->size && iterator < audio_buffer_size )
-                    packedAudioBuffer[iterator++] = frontBuffer->buffer[frontBuffer->iterator++];
-
-                if ( frontBuffer->iterator == frontBuffer->size )
+                if ( audio_buffer_size - iterator >= frontBuffer->size - frontBuffer->iterator  )
                 {
-                    vlcProducer->m_audioFramesTotalSize -= frontBuffer->size;
+                    memcpy( packedAudioBuffer + iterator, frontBuffer->buffer + frontBuffer->iterator, frontBuffer->size - frontBuffer->iterator );
+                    iterator += frontBuffer->size - frontBuffer->iterator;
+                    vlcProducer->m_audioFramesTotalSize -= frontBuffer->size - frontBuffer->iterator;
                     vlcProducer->m_audioFrames.pop_front();
+                }
+                else
+                {
+                    memcpy( packedAudioBuffer + iterator, frontBuffer->buffer + frontBuffer->iterator, audio_buffer_size - iterator );
+                    frontBuffer->iterator += audio_buffer_size - iterator;
+                    vlcProducer->m_audioFramesTotalSize -= audio_buffer_size - iterator;
+                    iterator = audio_buffer_size;
                 }
             }
         }
