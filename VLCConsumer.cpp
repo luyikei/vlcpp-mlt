@@ -28,6 +28,7 @@
 #include <vector>
 #include <sys/time.h>
 #include <memory>
+#include <mutex>
 
 #include <mlt++/MltConsumer.h>
 
@@ -158,6 +159,7 @@ private:
                         unsigned* flags, size_t* bufferSize, void** buffer )
     {
         auto vlcConsumer = reinterpret_cast<VLCConsumer*>( data );
+        std::unique_lock<std::mutex> lck( vlcConsumer->m_safeLock );
 
         if ( cookie[0] == VLCConsumer::AudioCookie )
         {
@@ -241,6 +243,7 @@ private:
     static void imem_release( void* data, const char* cookie, size_t buffSize, void* buffer )
     {
         auto vlcConsumer = reinterpret_cast<VLCConsumer*>( data );
+        std::unique_lock<std::mutex> lck( vlcConsumer->m_safeLock );
 
         if ( cookie[0] == VLCConsumer::AudioCookie )
         {
@@ -294,6 +297,8 @@ private:
 
     VLC::Media          m_media;
     VLC::MediaPlayer    m_mediaPlayer;
+
+    std::mutex          m_safeLock;
 
     std::shared_ptr<Mlt::Frame>         m_lastAudioFrame;
     std::shared_ptr<Mlt::Frame>         m_lastVideoFrame;
