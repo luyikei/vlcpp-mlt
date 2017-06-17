@@ -354,12 +354,12 @@ private:
         *width = vlcProducer->m_parent->get_int( "width" );
         *height = vlcProducer->m_parent->get_int( "height" );
 
-
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ), "format", mlt_image_yuv422 );
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ),"width", vlcProducer->m_parent->get_int( "width" ) );
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ),"height", vlcProducer->m_parent->get_int( "height" ) );
 
         vlcProducer->m_videoLastPosition = mlt_frame_original_position( frame );
+
         auto posDiff = vlcProducer->m_videoExpected - vlcProducer->m_videoLastPosition;
         bool toSeek = posDiff > 1 || posDiff <= -12;
         bool paused = posDiff == 1;
@@ -371,10 +371,15 @@ private:
         {
             auto videoFrame = vlcProducer->m_videoFrames.front();
             size = videoFrame->size;
-            newFrame = videoFrame->buffer;
 
-            if ( paused == false )
+            if ( paused == true )
             {
+                newFrame = ( uint8_t* ) mlt_pool_alloc( videoFrame->size );
+                memcpy( newFrame, videoFrame->buffer, size );
+            }
+            else
+            {
+                newFrame = videoFrame->buffer;
                 videoFrame->buffer = nullptr;
                 vlcProducer->m_videoFrames.pop_front();
             }
