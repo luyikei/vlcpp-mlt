@@ -10,6 +10,7 @@ include ../../../config.mak
 TARGET = ../libmltvlc$(LIBSUF)
 
 OBJS = factory.o \
+	common.o \
 	consumer_vlc.o \
 	producer_vlc.o \
 	VLCConsumer.o\

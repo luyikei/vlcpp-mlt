@@ -33,6 +33,8 @@
 
 #include <vlcpp/vlc.hpp>
 
+#include "common.hpp"
+
 class VLCConsumer
 {
 public:
@@ -148,7 +150,6 @@ public:
 
     static const uint8_t     VideoCookie = '0';
     static const uint8_t     AudioCookie = '1';
-    static VLC::Instance     instance;
 
 private:
 
@@ -290,16 +291,6 @@ private:
     int64_t             m_lastVideoPts;
 
 };
-
-const char * const argv[] = {
-    "--no-skip-frames",\
-    "--text-renderer",
-    "--no-sub-autodetect-file",
-    "--no-disable-screensaver",
-    NULL,
-};
-
-VLC::Instance VLCConsumer::instance = VLC::Instance( 4, argv );
 
 extern "C" mlt_consumer consumer_vlc_init_CXX( mlt_profile profile, mlt_service_type type , const char* id , char* arg )
 {

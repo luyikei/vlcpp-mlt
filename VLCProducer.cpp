@@ -36,6 +36,8 @@
 
 #include <vlcpp/vlc.hpp>
 
+#include "common.hpp"
+
 class VLCProducer
 {
 public:
@@ -239,8 +241,6 @@ public:
         if ( m_audioMediaPlayer.isValid() == true )
             m_audioMediaPlayer.stop();
     }
-
-    static VLC::Instance    instance;
 
 private:
 
@@ -565,17 +565,6 @@ private:
     std::condition_variable     m_frameReadyCond;  // For m_isFrameReady
     std::condition_variable     m_tooManyFramesCond; // For m_isTooManyFrames
 };
-
-
-const char * const argv[] = {
-    "--no-skip-frames",
-    "--text-renderer",
-    "--no-sub-autodetect-file",
-    "--no-disable-screensaver",
-    NULL,
-};
-
-VLC::Instance VLCProducer::instance = VLC::Instance( 4, argv );
 
 extern "C" mlt_producer producer_vlc_init_CXX( mlt_profile profile, mlt_service_type type , const char* id , char* arg )
 {
