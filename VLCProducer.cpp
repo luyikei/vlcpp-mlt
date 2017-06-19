@@ -221,7 +221,7 @@ public:
                 m_audioMediaPlayer = VLC::MediaPlayer( media );
             }
             mlt_service_cache_put( MLT_PRODUCER_SERVICE( parent ), "vlcProducer", this, 0,
-                                   ( mlt_destructor ) producer_close );
+                                   ( mlt_destructor ) vlc_producer_close );
         }
     }
 
@@ -324,6 +324,11 @@ private:
         auto vlcProducer = reinterpret_cast<VLCProducer*>( parent->child );
         vlcProducer->producer()->close = nullptr;
         mlt_service_cache_purge( vlcProducer->m_parent->get_service() );
+    }
+
+    static void vlc_producer_close( VLCProducer* parent )
+    {
+        delete parent;
     }
 
     static int producer_get_image( mlt_frame frame, uint8_t** buffer,
