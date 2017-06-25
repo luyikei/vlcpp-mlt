@@ -188,7 +188,7 @@ private:
 
             *buffer = frame->get_audio( audioFormat, frequency, channels, samples );
             *bufferSize = mlt_audio_format_size( audioFormat, samples, channels );
-            double ptsDiff = ( double ) samples / frequency * 1000000.0;
+            double ptsDiff = ( double ) samples / frequency * 1000000.0 + 0.5;
 
 
             *pts = vlcConsumer->m_lastAudioPts + ptsDiff;
@@ -223,7 +223,7 @@ private:
 
             *buffer = frame->get_image( videoFormat, width, height, 0 );
             *bufferSize = mlt_image_format_size( videoFormat, width, height, NULL );
-            double ptsDiff = 1.0 / vlcConsumer->m_parent->get_double( "fps" ) * 1000000.0;
+            double ptsDiff = 1.0 / vlcConsumer->m_parent->get_double( "fps" ) * 1000000.0 + 0.5;
 
             *pts = vlcConsumer->m_lastVideoPts + ptsDiff;
             vlcConsumer->m_lastVideoPts = *pts;
