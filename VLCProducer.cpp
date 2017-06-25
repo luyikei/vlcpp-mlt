@@ -374,7 +374,11 @@ private:
         if ( toSeek == false && paused == false )
             vlcProducer->m_videoLastPositionReal -= posDiff;
         bool toAdjust = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition > 1;
-        const auto frameDiff = vlcProducer->m_parent->get_fps() / std::min( vlcProducer->m_parent->get_fps(), vlcProducer->m_parent->get_double( "frame_rate" ) ); // Theoretical fps in the actual vlc
+
+        double fps = vlcProducer->m_parent->get_fps();
+        if ( mlt_properties_get( MLT_FRAME_PROPERTIES( frame ), "producer_consumer_fps" ) )
+            fps = mlt_properties_get_double( MLT_FRAME_PROPERTIES(frame), "producer_consumer_fps" );
+        const auto frameDiff = fps / std::min( fps, vlcProducer->m_parent->get_double( "frame_rate" ) ); // Theoretical fps in the actual vlc
 
         uint8_t* newFrame = nullptr;
         size_t size;
@@ -412,7 +416,7 @@ private:
         if ( toSeek == true )
         {
             vlcProducer->m_videoFrames.clear();
-            vlcProducer->m_videoMediaPlayer.setTime( vlcProducer->m_videoLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
+            vlcProducer->m_videoMediaPlayer.setTime( vlcProducer->m_videoLastPosition * 1000.0 / fps + 0.5 );
             vlcProducer->m_videoLastPositionReal = vlcProducer->m_videoLastPosition;
         }
 
@@ -515,7 +519,7 @@ private:
             {
                 vlcProducer->m_audioFrames.clear();
                 vlcProducer->m_audioFramesTotalSize = 0;
-                vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / vlcProducer->m_parent->get_fps() + 0.5 );
+                vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / fps + 0.5 );
             }
         }
 
