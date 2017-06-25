@@ -512,15 +512,12 @@ private:
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ), "audio_samples", needed_samples );
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ), "audio_format", mlt_audio_s16 );
 
-        if ( paused == false )
+        // Seek
+        if ( toSeek == true )
         {
-            // Seek
-            if ( toSeek == true )
-            {
-                vlcProducer->m_audioFrames.clear();
-                vlcProducer->m_audioFramesTotalSize = 0;
-                vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / fps + 0.5 );
-            }
+            vlcProducer->m_audioFrames.clear();
+            vlcProducer->m_audioFramesTotalSize = 0;
+            vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / fps + 0.5 );
         }
 
         vlcProducer->m_audioExpected = vlcProducer->m_audioLastPosition + 1;
