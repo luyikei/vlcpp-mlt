@@ -76,7 +76,8 @@ public:
             m_parent->set( "_profile", ( void* ) profile, 0, NULL, NULL );
 
             m_media = VLC::Media( instance, std::string( file ), VLC::Media::FromType::FromLocation );
-            m_media.parseWithOptions( VLC::Media::ParseFlags::Local, 3000 );
+            if ( m_media.parseWithOptions( VLC::Media::ParseFlags::Local, 3000 ) == false )
+                return;
             while ( m_media.parsedStatus() != VLC::Media::ParsedStatus::Done );
             if ( m_media.parsedStatus() == VLC::Media::ParsedStatus::Done )
             {
