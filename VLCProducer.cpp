@@ -599,13 +599,6 @@ private:
         return 0;
     }
 
-    void clearFrames()
-    {
-        m_audioFrames.clear();
-        m_videoFrames.clear();
-        m_audioFramesTotalSize = 0;
-    }
-
     std::unique_ptr<Mlt::Producer>      m_parent;
 
     VLC::Media          m_media;
