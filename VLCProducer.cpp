@@ -76,10 +76,27 @@ public:
             m_parent->set( "_profile", ( void* ) profile, 0, NULL, NULL );
 
             m_media = VLC::Media( instance, std::string( file ), VLC::Media::FromType::FromLocation );
-            if ( m_media.parseWithOptions( VLC::Media::ParseFlags::Local, 3000 ) == false )
-                return;
-            while ( m_media.parsedStatus() != VLC::Media::ParsedStatus::Done );
-            if ( m_media.parsedStatus() == VLC::Media::ParsedStatus::Done )
+
+            std::mutex preparseLock;
+            std::condition_variable preparseCond;
+            VLC::Media::ParsedStatus status;
+            bool done = false;
+            auto event = m_media.eventManager().onParsedChanged(
+                [&status, &done, &preparseLock, &preparseCond](VLC::Media::ParsedStatus s ) {
+                    std::lock_guard<std::mutex> lock( preparseLock );
+                    status = s;
+                    done = true;
+                    preparseCond.notify_all();
+                });
+            {
+                std::unique_lock<std::mutex> lock( preparseLock );
+
+                if ( m_media.parseWithOptions( VLC::Media::ParseFlags::Local, 3000 ) == false )
+                    return;
+                preparseCond.wait( lock, [&done]() { return done == true; } );
+            }
+            event->unregister();
+            if ( status == VLC::Media::ParsedStatus::Done )
             {
                 auto tracks = m_media.tracks();
                 m_parent->set( "meta.media.nb_streams", ( int ) tracks.size() );
