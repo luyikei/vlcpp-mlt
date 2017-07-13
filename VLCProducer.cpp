@@ -537,10 +537,6 @@ private:
                                 mlt_service_profile( MLT_PRODUCER_SERVICE( producer ) ),
                                 mlt_properties_get( MLT_PRODUCER_PROPERTIES( producer ), "resource" ),
                                 producer );
-
-            producer->child = vlcProducer;
-            mlt_service_cache_put( service, "vlcProducer", vlcProducer, 0,
-                                   ( mlt_destructor ) producer_close );
         }
 
 
