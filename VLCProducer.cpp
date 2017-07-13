@@ -23,6 +23,7 @@
 
 
 
+#include <atomic>
 #include <string>
 #include <deque>
 #include <vector>
@@ -55,6 +56,7 @@ public:
         , m_isVideoFrameReady( false )
         , m_isAudioTooManyFrames( false )
         , m_isVideoTooManyFrames( false )
+        , m_stopping( false )
         , m_audioBufferLimit( 5 )
         , m_videoBufferLimit( 5 )
     {
@@ -255,10 +257,7 @@ public:
 
     ~VLCProducer()
     {
-        if ( m_videoMediaPlayer.isValid() == true )
-            m_videoMediaPlayer.stop();
-        if ( m_audioMediaPlayer.isValid() == true )
-            m_audioMediaPlayer.stop();
+        stop();
     }
 
 private:
@@ -274,6 +273,22 @@ private:
         unsigned iterator;
     };
 
+    void stop()
+    {
+        m_stopping = true;
+
+        if ( m_videoMediaPlayer.isValid() == true )
+        {
+            m_videoTooManyFramesCond.notify_all();
+            m_videoMediaPlayer.stop();
+        }
+        if ( m_audioMediaPlayer.isValid() == true )
+        {
+            m_audioTooManyFramesCond.notify_all();
+            m_audioMediaPlayer.stop();
+        }
+    }
+
     static void audio_lock( void* data, uint8_t** buffer, size_t size )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
@@ -284,7 +299,10 @@ private:
         else
             vlcProducer->m_isAudioTooManyFrames = false;
 
-        vlcProducer->m_audioTooManyFramesCond.wait( lck, [vlcProducer]{ return vlcProducer->m_isAudioTooManyFrames == false; } );
+        vlcProducer->m_audioTooManyFramesCond.wait( lck, [vlcProducer]{
+            return vlcProducer->m_isAudioTooManyFrames == false ||
+                    vlcProducer->m_stopping == true;
+        });
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
@@ -317,7 +335,10 @@ private:
         else
             vlcProducer->m_isVideoTooManyFrames = false;
 
-        vlcProducer->m_videoTooManyFramesCond.wait( lck, [vlcProducer]{ return vlcProducer->m_isVideoTooManyFrames == false; } );
+        vlcProducer->m_videoTooManyFramesCond.wait( lck, [vlcProducer]{
+            return vlcProducer->m_isVideoTooManyFrames == false ||
+                    vlcProducer->m_stopping == true;
+        });
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
@@ -341,6 +362,7 @@ private:
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( parent->child );
         vlcProducer->producer()->close = nullptr;
+        vlcProducer->stop();
         mlt_service_cache_purge( vlcProducer->m_parent->get_service() );
     }
 
@@ -615,7 +637,7 @@ private:
     std::condition_variable     m_audioFrameReadyCond;  // For m_isFrameReady
     std::condition_variable     m_videoTooManyFramesCond; // For m_isTooManyFrames
     std::condition_variable     m_audioTooManyFramesCond; // For m_isTooManyFrames
-
+    std::atomic_bool            m_stopping;
     u_int32_t           m_audioBufferLimit;
     u_int32_t           m_videoBufferLimit;
 };
