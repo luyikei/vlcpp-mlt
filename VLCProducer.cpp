@@ -23,6 +23,7 @@
 
 
 
+#include <atomic>
 #include <string>
 #include <deque>
 #include <vector>
@@ -55,6 +56,7 @@ public:
         , m_isVideoFrameReady( false )
         , m_isAudioTooManyFrames( false )
         , m_isVideoTooManyFrames( false )
+        , m_stopping( false )
         , m_audioBufferLimit( 5 )
         , m_videoBufferLimit( 5 )
     {
@@ -76,9 +78,27 @@ public:
             m_parent->set( "_profile", ( void* ) profile, 0, NULL, NULL );
 
             m_media = VLC::Media( instance, std::string( file ), VLC::Media::FromType::FromLocation );
-            m_media.parseWithOptions( VLC::Media::ParseFlags::Local, 3000 );
-            while ( m_media.parsedStatus() != VLC::Media::ParsedStatus::Done );
-            if ( m_media.parsedStatus() == VLC::Media::ParsedStatus::Done )
+
+            std::mutex preparseLock;
+            std::condition_variable preparseCond;
+            VLC::Media::ParsedStatus status;
+            bool done = false;
+            auto event = m_media.eventManager().onParsedChanged(
+                [&status, &done, &preparseLock, &preparseCond](VLC::Media::ParsedStatus s ) {
+                    std::lock_guard<std::mutex> lock( preparseLock );
+                    status = s;
+                    done = true;
+                    preparseCond.notify_all();
+                });
+            {
+                std::unique_lock<std::mutex> lock( preparseLock );
+
+                if ( m_media.parseWithOptions( VLC::Media::ParseFlags::Local, 3000 ) == false )
+                    return;
+                preparseCond.wait( lock, [&done]() { return done == true; } );
+            }
+            event->unregister();
+            if ( status == VLC::Media::ParsedStatus::Done )
             {
                 auto tracks = m_media.tracks();
                 m_parent->set( "meta.media.nb_streams", ( int ) tracks.size() );
@@ -237,10 +257,7 @@ public:
 
     ~VLCProducer()
     {
-        if ( m_videoMediaPlayer.isValid() == true )
-            m_videoMediaPlayer.stop();
-        if ( m_audioMediaPlayer.isValid() == true )
-            m_audioMediaPlayer.stop();
+        stop();
     }
 
 private:
@@ -256,6 +273,22 @@ private:
         unsigned iterator;
     };
 
+    void stop()
+    {
+        m_stopping = true;
+
+        if ( m_videoMediaPlayer.isValid() == true )
+        {
+            m_videoTooManyFramesCond.notify_all();
+            m_videoMediaPlayer.stop();
+        }
+        if ( m_audioMediaPlayer.isValid() == true )
+        {
+            m_audioTooManyFramesCond.notify_all();
+            m_audioMediaPlayer.stop();
+        }
+    }
+
     static void audio_lock( void* data, uint8_t** buffer, size_t size )
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( data );
@@ -266,7 +299,10 @@ private:
         else
             vlcProducer->m_isAudioTooManyFrames = false;
 
-        vlcProducer->m_audioTooManyFramesCond.wait( lck, [vlcProducer]{ return vlcProducer->m_isAudioTooManyFrames == false; } );
+        vlcProducer->m_audioTooManyFramesCond.wait( lck, [vlcProducer]{
+            return vlcProducer->m_isAudioTooManyFrames == false ||
+                    vlcProducer->m_stopping == true;
+        });
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
@@ -299,7 +335,10 @@ private:
         else
             vlcProducer->m_isVideoTooManyFrames = false;
 
-        vlcProducer->m_videoTooManyFramesCond.wait( lck, [vlcProducer]{ return vlcProducer->m_isVideoTooManyFrames == false; } );
+        vlcProducer->m_videoTooManyFramesCond.wait( lck, [vlcProducer]{
+            return vlcProducer->m_isVideoTooManyFrames == false ||
+                    vlcProducer->m_stopping == true;
+        });
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
     }
@@ -323,6 +362,7 @@ private:
     {
         auto vlcProducer = reinterpret_cast<VLCProducer*>( parent->child );
         vlcProducer->producer()->close = nullptr;
+        vlcProducer->stop();
         mlt_service_cache_purge( vlcProducer->m_parent->get_service() );
     }
 
@@ -555,13 +595,6 @@ private:
         return 0;
     }
 
-    void clearFrames()
-    {
-        m_audioFrames.clear();
-        m_videoFrames.clear();
-        m_audioFramesTotalSize = 0;
-    }
-
     std::unique_ptr<Mlt::Producer>      m_parent;
 
     VLC::Media          m_media;
@@ -593,7 +626,7 @@ private:
     std::condition_variable     m_audioFrameReadyCond;  // For m_isFrameReady
     std::condition_variable     m_videoTooManyFramesCond; // For m_isTooManyFrames
     std::condition_variable     m_audioTooManyFramesCond; // For m_isTooManyFrames
-
+    std::atomic_bool            m_stopping;
     u_int32_t           m_audioBufferLimit;
     u_int32_t           m_videoBufferLimit;
 };
