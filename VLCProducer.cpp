@@ -485,7 +485,7 @@ private:
         if ( toSeek == true )
         {
             vlcProducer->m_videoFrames.clear();
-            vlcProducer->m_videoMediaPlayer.setTime( vlcProducer->m_videoLastPosition * 1000.0 / fps + 0.5 );
+            vlcProducer->m_videoMediaPlayer.setPosition( ( double ) vlcProducer->m_videoLastPosition / vlcProducer->m_parent->get_length() );
             vlcProducer->m_videoLastPositionReal = vlcProducer->m_videoLastPosition;
         }
 
@@ -586,7 +586,7 @@ private:
         {
             vlcProducer->m_audioFrames.clear();
             vlcProducer->m_audioFramesTotalSize = 0;
-            vlcProducer->m_audioMediaPlayer.setTime( vlcProducer->m_audioLastPosition * 1000.0 / fps + 0.5 );
+            vlcProducer->m_audioMediaPlayer.setPosition( ( double ) vlcProducer->m_audioLastPosition / vlcProducer->m_parent->get_length() );
         }
 
         vlcProducer->m_audioExpected = vlcProducer->m_audioLastPosition + 1;
