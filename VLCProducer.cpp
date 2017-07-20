@@ -182,7 +182,10 @@ public:
                     m_parent->set( "aspect_ratio", ( double ) tracks[m_videoIndex].sarNum() / tracks[m_videoIndex].sarDen() );
                     m_parent->set( "meta.media.frame_rate_num", ( int64_t ) tracks[m_videoIndex].fpsNum() );
                     m_parent->set( "meta.media.frame_rate_den", ( int64_t ) tracks[m_videoIndex].fpsDen() );
-                    m_parent->set( "frame_rate", ( double ) tracks[m_videoIndex].fpsNum() / tracks[m_videoIndex].fpsDen() );
+                    auto fps = ( double ) tracks[m_videoIndex].fpsNum() / tracks[m_videoIndex].fpsDen();
+                    m_parent->set( "frame_rate", fps );
+                    m_audioBufferLimit *= fps / m_parent->get_fps();
+                    m_videoBufferLimit *= fps / m_parent->get_fps();
                     m_parent->set( "length",
                                    ( int ) ( m_media.duration() * m_parent->get_fps() / 1000 + 0.5 ) );
                     m_parent->set( "out", ( int ) m_parent->get_int( "length" ) - 1 );
