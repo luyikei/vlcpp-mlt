@@ -187,7 +187,7 @@ public:
                     m_audioBufferLimit *= fps / m_parent->get_fps();
                     m_videoBufferLimit *= fps / m_parent->get_fps();
                     m_parent->set( "length",
-                                   ( int ) ( m_media.duration() * m_parent->get_fps() / 1000 + 0.5 ) );
+                                   ( int ) ( ( double ) m_media.duration() / 1000 * m_parent->get_fps() + 0.5 ) );
                     m_parent->set( "out", ( int ) m_parent->get_int( "length" ) - 1 );
                 }
 
