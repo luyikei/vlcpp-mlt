@@ -56,7 +56,8 @@ public:
         , m_isVideoFrameReady( false )
         , m_isAudioTooManyFrames( false )
         , m_isVideoTooManyFrames( false )
-        , m_stopping( false )
+        , m_audioStopping( false )
+        , m_videoStopping( false )
         , m_audioBufferLimit( 5 )
         , m_videoBufferLimit( 5 )
     {
@@ -273,20 +274,32 @@ private:
         unsigned iterator;
     };
 
-    void stop()
+    void audioStop()
     {
-        m_stopping = true;
+        m_audioStopping = true;
+
+        if ( m_audioMediaPlayer.isValid() == true )
+        {
+            m_audioTooManyFramesCond.notify_all();
+            m_audioMediaPlayer.stop();
+        }
+    }
+
+    void videoStop()
+    {
+        m_videoStopping = true;
 
         if ( m_videoMediaPlayer.isValid() == true )
         {
             m_videoTooManyFramesCond.notify_all();
             m_videoMediaPlayer.stop();
         }
-        if ( m_audioMediaPlayer.isValid() == true )
-        {
-            m_audioTooManyFramesCond.notify_all();
-            m_audioMediaPlayer.stop();
-        }
+    }
+
+    void stop()
+    {
+        audioStop();
+        videoStop();
     }
 
     static void audio_lock( void* data, uint8_t** buffer, size_t size )
@@ -301,7 +314,7 @@ private:
 
         vlcProducer->m_audioTooManyFramesCond.wait( lck, [vlcProducer]{
             return vlcProducer->m_isAudioTooManyFrames == false ||
-                    vlcProducer->m_stopping == true;
+                    vlcProducer->m_audioStopping == true;
         });
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
@@ -337,7 +350,7 @@ private:
 
         vlcProducer->m_videoTooManyFramesCond.wait( lck, [vlcProducer]{
             return vlcProducer->m_isVideoTooManyFrames == false ||
-                    vlcProducer->m_stopping == true;
+                    vlcProducer->m_videoStopping == true;
         });
 
         *buffer = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
@@ -626,7 +639,8 @@ private:
     std::condition_variable     m_audioFrameReadyCond;  // For m_isFrameReady
     std::condition_variable     m_videoTooManyFramesCond; // For m_isTooManyFrames
     std::condition_variable     m_audioTooManyFramesCond; // For m_isTooManyFrames
-    std::atomic_bool            m_stopping;
+    std::atomic_bool            m_audioStopping;
+    std::atomic_bool            m_videoStopping;
     u_int32_t           m_audioBufferLimit;
     u_int32_t           m_videoBufferLimit;
 };
