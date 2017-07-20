@@ -202,7 +202,6 @@ public:
                 char smem_options[ 1000 ];
                 sprintf( smem_options,
                         ":sout=#transcode{"
-                        "fps=%d/%d,"
                         "vcodec=%s,"
                         "}:smem{"
                         "video-prerender-callback=%" PRIdPTR ","
@@ -210,8 +209,6 @@ public:
                         "video-data=%" PRIdPTR ","
                         "no-time-sync"
                         "}",
-                        profile->frame_rate_num,
-                        profile->frame_rate_den,
                         "YUY2",
                         ( intptr_t ) &video_lock,
                         ( intptr_t ) &video_unlock,
@@ -429,26 +426,42 @@ private:
         bool paused = posDiff == 1;
         if ( toSeek == false && paused == false )
             vlcProducer->m_videoLastPositionReal -= posDiff;
-        bool toAdjust = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition > 1;
+        bool toDuplicate = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition > 1;
+        bool toSkip = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition < -1;
 
         double fps = vlcProducer->m_parent->get_fps();
         if ( mlt_properties_get( MLT_FRAME_PROPERTIES( frame ), "producer_consumer_fps" ) )
             fps = mlt_properties_get_double( MLT_FRAME_PROPERTIES(frame), "producer_consumer_fps" );
-        const auto frameDiff = fps / std::min( fps, vlcProducer->m_parent->get_double( "frame_rate" ) ); // Theoretical fps in the actual vlc
+        const auto frameDiff = fps / vlcProducer->m_parent->get_double( "frame_rate" ); // Theoretical fps in the actual vlc
 
         uint8_t* newFrame = nullptr;
         size_t size;
+
+        while ( toSkip == true )
+        {
+            if ( vlcProducer->m_videoFrames.size() > 0 )
+            {
+                vlcProducer->m_videoFrames.pop_front();
+                vlcProducer->m_videoLastPositionReal += frameDiff;
+                toSkip = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition < -1;
+            }
+            else
+            {
+                toSeek = true;
+                break;
+            }
+        }
 
         if ( vlcProducer->m_videoFrames.size() > 0 )
         {
             auto videoFrame = vlcProducer->m_videoFrames.front();
             size = videoFrame->size;
 
-            if ( paused == true || toAdjust == true )
+            if ( paused == true || toDuplicate == true )
             {
                 newFrame = ( uint8_t* ) mlt_pool_alloc( videoFrame->size );
                 memcpy( newFrame, videoFrame->buffer, size );
-                if ( toAdjust == true )
+                if ( toDuplicate == true )
                     vlcProducer->m_videoLastPositionReal -= frameDiff;
             }
             else
