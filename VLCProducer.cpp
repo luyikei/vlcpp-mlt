@@ -414,6 +414,7 @@ private:
         *format = mlt_image_yuv422;
         *width = vlcProducer->m_parent->get_int( "width" );
         *height = vlcProducer->m_parent->get_int( "height" );
+        *buffer = nullptr;
 
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ), "format", mlt_image_yuv422 );
         mlt_properties_set_int( MLT_FRAME_PROPERTIES( frame ),"width", vlcProducer->m_parent->get_int( "width" ) );
@@ -421,73 +422,69 @@ private:
 
         vlcProducer->m_videoLastPosition = mlt_frame_original_position( frame );
 
-        auto posDiff = vlcProducer->m_videoExpected - vlcProducer->m_videoLastPosition;
-        bool toSeek = posDiff > 1 || posDiff <= -12;
-        bool paused = posDiff == 1;
-        if ( toSeek == false && paused == false )
-            vlcProducer->m_videoLastPositionReal -= posDiff;
-        bool toDuplicate = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition > 1;
-        bool toSkip = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition < -1;
-
         double fps = vlcProducer->m_parent->get_fps();
         if ( mlt_properties_get( MLT_FRAME_PROPERTIES( frame ), "producer_consumer_fps" ) )
             fps = mlt_properties_get_double( MLT_FRAME_PROPERTIES(frame), "producer_consumer_fps" );
+        const auto posDiff = vlcProducer->m_videoExpected - vlcProducer->m_videoLastPosition;
         const auto frameDiff = fps / vlcProducer->m_parent->get_double( "frame_rate" ); // Theoretical fps in the actual vlc
-
-        uint8_t* newFrame = nullptr;
-        size_t size;
-
-        while ( toSkip == true )
-        {
-            if ( vlcProducer->m_videoFrames.size() > 0 )
-            {
-                vlcProducer->m_videoFrames.pop_front();
-                vlcProducer->m_videoLastPositionReal += frameDiff;
-                toSkip = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition < -1;
-            }
-            else
-            {
-                toSeek = true;
-                break;
-            }
-        }
-
-        if ( vlcProducer->m_videoFrames.size() > 0 )
-        {
-            auto videoFrame = vlcProducer->m_videoFrames.front();
-            size = videoFrame->size;
-
-            if ( paused == true || toDuplicate == true )
-            {
-                newFrame = ( uint8_t* ) mlt_pool_alloc( videoFrame->size );
-                memcpy( newFrame, videoFrame->buffer, size );
-                if ( toDuplicate == true )
-                    vlcProducer->m_videoLastPositionReal -= frameDiff;
-            }
-            else
-            {
-                newFrame = videoFrame->buffer;
-                videoFrame->buffer = nullptr;
-                vlcProducer->m_videoFrames.pop_front();
-            }
-        }
-        else
-        {
-            size = *width * *height * 4;
-            newFrame = ( uint8_t* ) mlt_pool_alloc( size * sizeof( uint8_t ) );
-        }
-
-        *buffer = newFrame;
-        mlt_frame_set_image( frame, newFrame, size,
-                             ( mlt_destructor ) mlt_pool_release );
-
+        bool toSeek = posDiff > 1 || posDiff <= -12;
+        size_t size = 0;
         // Seek
         if ( toSeek == true )
         {
             vlcProducer->m_videoFrames.clear();
             vlcProducer->m_videoMediaPlayer.setPosition( ( double ) vlcProducer->m_videoLastPosition / vlcProducer->m_parent->get_length() );
-            vlcProducer->m_videoLastPositionReal = vlcProducer->m_videoLastPosition;
+            vlcProducer->m_videoLastPositionReal = vlcProducer->m_videoLastPosition + 1;
         }
+        else
+        {
+            bool paused = posDiff == 1;
+            if ( toSeek == false && paused == false )
+                vlcProducer->m_videoLastPositionReal -= posDiff;
+            bool toDuplicate = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition > 1;
+            bool toSkip = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition < -1;
+
+            while ( toSkip == true )
+            {
+                if ( vlcProducer->m_videoFrames.size() > 0 )
+                {
+                    vlcProducer->m_videoFrames.pop_front();
+                    vlcProducer->m_videoLastPositionReal += frameDiff;
+                    toSkip = vlcProducer->m_videoLastPositionReal - vlcProducer->m_videoLastPosition < -1;
+                }
+                else
+                {
+                    toSeek = true;
+                    break;
+                }
+            }
+
+            if ( vlcProducer->m_videoFrames.size() > 0 )
+            {
+                auto videoFrame = vlcProducer->m_videoFrames.front();
+                size = videoFrame->size;
+
+                if ( paused == true || toDuplicate == true )
+                {
+                    *buffer = ( uint8_t* ) mlt_pool_alloc( videoFrame->size );
+                    memcpy( *buffer, videoFrame->buffer, size );
+                    if ( toDuplicate == true )
+                        vlcProducer->m_videoLastPositionReal -= frameDiff;
+                }
+                else
+                {
+                    *buffer = videoFrame->buffer;
+                    videoFrame->buffer = nullptr;
+                    vlcProducer->m_videoFrames.pop_front();
+                }
+            }
+        }
+
+        if ( *buffer == nullptr )
+            *buffer = ( uint8_t* ) mlt_pool_alloc( mlt_image_format_size( mlt_image_yuv422, *width, *height, NULL ) );
+
+        mlt_frame_set_image( frame, *buffer, size,
+                             ( mlt_destructor ) mlt_pool_release );
 
         vlcProducer->m_videoExpected = vlcProducer->m_videoLastPosition + 1;
         vlcProducer->m_videoLastPositionReal += frameDiff;
@@ -538,35 +535,6 @@ private:
         vlcProducer->m_audioLastPosition = mlt_frame_original_position( frame );
         auto posDiff = vlcProducer->m_audioExpected - vlcProducer->m_audioLastPosition;
         bool toSeek = posDiff > 1 || posDiff <= -12;
-        bool paused = posDiff == 1;
-
-
-        if ( paused == false && vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
-        {
-            unsigned  iterator = 0;
-            while ( iterator < audio_buffer_size )
-            {
-                auto frontBuffer = vlcProducer->m_audioFrames.front();
-
-                if ( audio_buffer_size - iterator >= frontBuffer->size - frontBuffer->iterator  )
-                {
-                    memcpy( packedAudioBuffer + iterator, frontBuffer->buffer + frontBuffer->iterator, frontBuffer->size - frontBuffer->iterator );
-                    iterator += frontBuffer->size - frontBuffer->iterator;
-                    vlcProducer->m_audioFramesTotalSize -= frontBuffer->size - frontBuffer->iterator;
-                    vlcProducer->m_audioFrames.pop_front();
-                }
-                else
-                {
-                    memcpy( packedAudioBuffer + iterator, frontBuffer->buffer + frontBuffer->iterator, audio_buffer_size - iterator );
-                    frontBuffer->iterator += audio_buffer_size - iterator;
-                    vlcProducer->m_audioFramesTotalSize -= audio_buffer_size - iterator;
-                    iterator = audio_buffer_size;
-                }
-            }
-        }
-
-        mlt_frame_set_audio( frame, packedAudioBuffer, mlt_audio_s16,
-                        audio_buffer_size, ( mlt_destructor ) mlt_pool_release );
 
         *buffer = packedAudioBuffer;
         *frequency = vlcProducer->m_parent->get_int64( "sample_rate" );
@@ -587,6 +555,36 @@ private:
             vlcProducer->m_audioFrames.clear();
             vlcProducer->m_audioFramesTotalSize = 0;
             vlcProducer->m_audioMediaPlayer.setPosition( ( double ) vlcProducer->m_audioLastPosition / vlcProducer->m_parent->get_length() );
+        }
+        else
+        {
+            bool paused = posDiff == 1;
+            if ( paused == false && vlcProducer->m_audioFramesTotalSize >= audio_buffer_size )
+            {
+                unsigned  iterator = 0;
+                while ( iterator < audio_buffer_size )
+                {
+                    auto frontBuffer = vlcProducer->m_audioFrames.front();
+
+                    if ( audio_buffer_size - iterator >= frontBuffer->size - frontBuffer->iterator  )
+                    {
+                        memcpy( packedAudioBuffer + iterator, frontBuffer->buffer + frontBuffer->iterator, frontBuffer->size - frontBuffer->iterator );
+                        iterator += frontBuffer->size - frontBuffer->iterator;
+                        vlcProducer->m_audioFramesTotalSize -= frontBuffer->size - frontBuffer->iterator;
+                        vlcProducer->m_audioFrames.pop_front();
+                    }
+                    else
+                    {
+                        memcpy( packedAudioBuffer + iterator, frontBuffer->buffer + frontBuffer->iterator, audio_buffer_size - iterator );
+                        frontBuffer->iterator += audio_buffer_size - iterator;
+                        vlcProducer->m_audioFramesTotalSize -= audio_buffer_size - iterator;
+                        iterator = audio_buffer_size;
+                    }
+                }
+            }
+
+            mlt_frame_set_audio( frame, packedAudioBuffer, mlt_audio_s16,
+                                 audio_buffer_size, ( mlt_destructor ) mlt_pool_release );
         }
 
         vlcProducer->m_audioExpected = vlcProducer->m_audioLastPosition + 1;
