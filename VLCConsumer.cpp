@@ -71,6 +71,11 @@ public:
         mlt_parent->is_stopped = consumer_is_stopped;
         mlt_parent->purge = consumer_purge;
 
+        resetMedia();
+    }
+
+    void resetMedia()
+    {
         char videoString[512];
         char inputSlave[256];
         char audioParameters[256];
@@ -146,6 +151,7 @@ public:
         m_lastAudioPts = 0;
         m_lastVideoPts = 0;
         purge();
+        resetMedia();
     }
 
     ~VLCConsumer() = default;
